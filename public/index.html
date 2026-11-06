@@ -12,20 +12,20 @@
     <style>
         :root {
             color-scheme: light;
-            --paper: #fdf9f1;
-            --ink: #18181b;
-            --orange: #f59e0b;
-            --orange-soft: #fef3c7;
-            --mint: #10b981;
-            --mint-soft: #d1fae5;
-            --sky: #38bdf8;
-            --sky-soft: #e0f2fe;
-            --coral: #f43f5e;
-            --coral-soft: #ffe4e6;
+            --paper: #ffffff;
+            --ink: #111111;
+            --orange: #ffffff;
+            --orange-soft: #f4f4f5;
+            --mint: #d4d4d8;
+            --mint-soft: #f4f4f5;
+            --sky: #e4e4e7;
+            --sky-soft: #f4f4f5;
+            --coral: #e4e4e7;
+            --coral-soft: #f4f4f5;
             --cream: #ffffff;
-            --surface-alt: #f8f5ec;
-            --line: #18181b;
-            --shadow: #18181b;
+            --surface-alt: #f7f7f7;
+            --line: #111111;
+            --shadow: #111111;
         }
 
         * {
@@ -97,6 +97,50 @@
             font-weight: 900;
             letter-spacing: 0.3px;
             font-size: 16px;
+        }
+
+        .page-shortcuts {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .page-shortcut {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            min-height: 32px;
+            padding: 5px 10px;
+            border: 2px solid var(--line);
+            border-radius: 8px;
+            background: #fff;
+            color: var(--ink);
+            box-shadow: 2px 2px 0 var(--shadow);
+            font-size: 11px;
+            font-weight: 900;
+            text-decoration: none;
+            white-space: nowrap;
+            transition: transform .15s ease, box-shadow .15s ease;
+        }
+
+        .page-shortcut:hover {
+            transform: translate(-1px, -1px);
+            box-shadow: 3px 3px 0 var(--shadow);
+        }
+
+        .page-shortcut:focus-visible {
+            outline: 3px solid #737373;
+            outline-offset: 3px;
+        }
+
+        @media (max-width: 520px) {
+            .site-topbar { flex-wrap: wrap; justify-content: space-between; }
+            .site-brand { font-size: 14px; gap: 7px; }
+            .page-shortcuts { order: 3; width: 100%; justify-content: flex-start; }
+            .page-shortcut { min-height: 30px; padding: 4px 9px; font-size: 10px; }
         }
 
         .brand-mark {
@@ -1520,6 +1564,155 @@
             .member-tx-top { flex-direction: column; align-items: stretch; }
             .member-tx-amount { align-self: flex-start; }
         }
+
+        /* Professional navy + cool-neutral theme */
+        :root {
+            color-scheme: light;
+            --paper: #f3f6fb;
+            --ink: #17243a;
+            --orange: #14243b;
+            --orange-soft: #eaf0f8;
+            --mint: #d8f4eb;
+            --mint-soft: #e6f7f1;
+            --sky: #dceafe;
+            --sky-soft: #edf4ff;
+            --coral: #fce8e6;
+            --coral-soft: #fff1ef;
+            --cream: #ffffff;
+            --surface-alt: #f7f9fc;
+            --line: #d8e0eb;
+            --shadow: rgba(21, 39, 65, .08);
+        }
+        body {
+            background: #f3f6fb;
+            background-image: radial-gradient(rgba(42, 67, 101, .075) .7px, transparent .7px);
+            background-size: 22px 22px;
+            color: #17243a;
+        }
+        .site-topbar {
+            background: #14243b;
+            color: #fff;
+            border: 0;
+            border-bottom: 1px solid rgba(255,255,255,.12);
+            box-shadow: 0 8px 24px rgba(15, 31, 54, .16);
+            padding-top: 12px;
+            padding-bottom: 12px;
+        }
+        .site-brand { color: #fff; }
+        .brand-mark {
+            color: #fff;
+            background: #287caa;
+            border: 1px solid rgba(255,255,255,.22);
+            box-shadow: none;
+        }
+        .brand-tag {
+            color: #d9e9f7;
+            background: rgba(255,255,255,.09);
+            border: 1px solid rgba(255,255,255,.2);
+            box-shadow: none;
+        }
+        .topbar-status {
+            color: #d8f7e9;
+            background: rgba(27, 160, 112, .16);
+            border: 1px solid rgba(119, 220, 177, .32);
+            box-shadow: none;
+        }
+        .status-dot { background: #39d39a; }
+        .marquee {
+            background: #e7eef7;
+            color: #344b68;
+            border-bottom: 1px solid #d5dfeb;
+        }
+        .owner-intro, .goal-box, .neo-card, .account-gate-card,
+        .account-hero-card, .account-section-card, .member-level-box,
+        .member-stat-card, .badge-item-card, .feed-item, .transaction-row,
+        .notice-panel, .comment-panel, .payment-instructions, .info-list,
+        .qr-frame, .account-gate-icon, .tier-badge, .badge-title,
+        .tab-btn.active, .tab-btn:hover, .preset-btn:active,
+        .preset-btn:focus, .emoji-btn.selected, .payment-option.selected,
+        .wallet-folder-icon, .neo-btn, .session-banner, .toast-icon {
+            background-color: #fff;
+            color: #17243a;
+            border-color: #d8e0eb;
+            box-shadow: 0 5px 18px rgba(22, 42, 69, .055);
+        }
+        .goal-header, .progress-text { color: #243a56; }
+        .progress-fill, .member-progress-bar { background: #287caa; }
+        .progress-track, .member-progress-track { background: #e5ebf3; }
+        .member-stat-value, .member-tx-amount, .feed-amount {
+            background: #edf4fb;
+            color: #1e5478;
+        }
+        .neo-btn.red { background: #fff1ef; color: #a63d38; }
+        .neo-btn.blue { background: #e8f2ff; color: #205b91; }
+        .neo-btn.mint { background: #e6f7f1; color: #176b52; }
+        .alert-box { background: #fff7e8; color: #855b19; }
+        .transaction-status { background: #edf4fb; color: #31516f; }
+        .status-pending { background: #fff4d9; color: #855b19; }
+        .status-expired, .status-cancelled, .status-canceled, .status-failed { background: #fff1ef; color: #a63d38; }
+
+        /* Always-visible page navigation, separated from the brand header */
+        .page-shortcuts {
+            display: flex;
+            width: min(740px, calc(100% - 32px));
+            margin: 14px auto 0;
+            padding: 0;
+            gap: 12px;
+            justify-content: flex-start;
+            align-items: stretch;
+        }
+        .page-shortcut {
+            flex: 1 1 0;
+            min-height: 54px;
+            display: flex;
+            justify-content: flex-start;
+            gap: 11px;
+            padding: 10px 15px;
+            border: 1px solid #d6e0ec;
+            border-radius: 12px;
+            background: #fff;
+            color: #203650;
+            box-shadow: 0 4px 14px rgba(22, 42, 69, .06);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: .15px;
+            text-decoration: none;
+            white-space: normal;
+            transition: border-color .16s ease, transform .16s ease, box-shadow .16s ease;
+        }
+        .page-shortcut i, .page-shortcut svg { width: 18px; height: 18px; color: #287caa; flex: 0 0 auto; }
+        .page-shortcut:hover {
+            transform: translateY(-2px);
+            border-color: #8db8d6;
+            box-shadow: 0 8px 20px rgba(22, 72, 112, .11);
+        }
+        .page-shortcut:focus-visible { outline: 3px solid #69a9d2; outline-offset: 3px; }
+        @media (max-width: 520px) {
+            .page-shortcuts { width: calc(100% - 24px); margin-top: 12px; gap: 9px; }
+            .page-shortcut { min-height: 58px; padding: 10px; font-size: 11px; border-radius: 10px; }
+            .site-topbar { flex-wrap: nowrap; }
+        }
+        .fee-comparison-note {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin: 0 0 14px;
+            padding: 12px 13px;
+            border: 2px solid var(--line);
+            border-radius: 10px;
+            background: #f7f7f7;
+            box-shadow: 3px 3px 0 var(--shadow);
+            color: #111;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1.55;
+        }
+        .fee-comparison-note i, .fee-comparison-note svg {
+            width: 18px;
+            height: 18px;
+            flex: 0 0 18px;
+            margin-top: 1px;
+        }
     </style>
 </head>
 <body>
@@ -1531,6 +1724,11 @@
         </div>
         <span class="topbar-status"><span class="status-dot"></span> LIVE</span>
     </header>
+
+    <nav class="page-shortcuts" aria-label="Navigasi halaman">
+        <a class="page-shortcut" href="/status"><i data-lucide="activity" aria-hidden="true"></i><span>Status &amp; Health</span></a>
+        <a class="page-shortcut" href="/admin"><i data-lucide="shield-check" aria-hidden="true"></i><span>Admin Dashboard</span></a>
+    </nav>
 
     <div class="marquee" aria-label="Info donasi terbaru">
         <i data-lucide="radio-tower" aria-hidden="true"></i>
@@ -1587,6 +1785,10 @@
                             <h3 style="margin:0 0 4px; font-size:16px; font-weight:900;">Sebelum Berdonasi</h3>
                             <p style="margin:0; font-size:12.5px; color:#57534e; font-weight:600;">Daftar atau login dengan OTP WhatsApp untuk membuka dashboard member, riwayat transaksi lengkap, level, dan badge. Kamu juga bisa berdonasi sebagai Anonim tanpa nama alias.</p>
                         </div>
+                    </div>
+                    <div class="fee-comparison-note" role="note">
+                        <i data-lucide="info" aria-hidden="true"></i>
+                        <span>Memilih login menggunakan akun WhatsApp akan mendapatkan biaya admin lebih rendah. Jika melanjutkan secara anonim, biaya admin akan lebih besar.</span>
                     </div>
                     <div class="account-gate-actions">
                         <button type="button" class="neo-btn" onclick="showRegister()"><i data-lucide="smartphone"></i> DAFTAR / LOGIN WA</button>
