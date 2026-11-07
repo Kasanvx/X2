@@ -1963,11 +1963,12 @@
                             </span>
                         </p>
                         <p><span>NOMINAL</span> <span id="trxAmount"></span></p>
-                        <p><span>BIAYA ADMIN</span> <span id="trxFee"></span></p>
+                        <p><span>BIAYA ADMIN + KODE UNIK</span> <span id="trxFee"></span></p>
                         <p style="font-size: 15px; background: var(--mint-soft); padding: 8px 10px; border: 2px solid var(--line); border-radius: 8px; margin-top: 6px;">
                             <span>TOTAL BAYAR</span> <span id="trxTotal" style="font-weight:900;"></span>
                         </p>
                     </div>
+                    <p style="font-size:12px;line-height:1.5;color:var(--muted);margin:8px 2px 14px;">Setiap transaksi aktif dapat memiliki kode unik acak agar pembayaran tidak tertukar. Transfer tepat sesuai TOTAL BAYAR yang tertera; jangan memakai nominal dari transaksi lain.</p>
 
                     <div class="action-row">
                         <button type="button" id="qrDownloadBtn" onclick="downloadQrOnly()" class="neo-btn blue icon-btn"><i data-lucide="download"></i> UNDUH QR CODE</button>
@@ -2214,7 +2215,7 @@
             }
             const amount = Math.max(0, Number(document.getElementById('amount')?.value || 0))
             const percent = authUser ? publicFeeConfig.memberPercent : publicFeeConfig.anonymousPercent
-            el.textContent = `Estimasi fee layanan ${percent}%: ${formatRp(Math.round(amount * percent / 100))}. Nominal final mengikuti konfirmasi backend dan gateway.`
+            el.textContent = `Fee dasar ${percent}%: ${formatRp(Math.round(amount * percent / 100))}. Gateway dapat menambahkan kode unik acak pada transaksi aktif; total final ditampilkan sebelum pembayaran.`
         }
 
         const loadPublicConfig = async () => {
@@ -2985,7 +2986,7 @@
                     }
                 } catch (e) {}
 
-                pollTimer = setTimeout(poll, 2500)
+                pollTimer = setTimeout(poll, 1000)
             }
 
             poll()
