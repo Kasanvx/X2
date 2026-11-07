@@ -8,7 +8,6 @@ dotenv.config()
 const app = express()
 const BTZ_BASE_URL = new URL(process.env.BTZ_BASE_URL || 'https://web.btzpay.my.id').origin
 const SITE_URL = String(process.env.SITE_URL || 'https://donate.khasan.site').replace(/\/+$/, '')
-const BTZ_CALLBACK_URL = String(process.env.BTZ_CALLBACK_URL || `${SITE_URL}/api/paygate/callback`).replace(/\/+$/, '')
 const BTZ_RETURN_URL = String(process.env.BTZ_RETURN_URL || `${SITE_URL}/success`).replace(/\/+$/, '')
 const API_KEY = process.env.BTZ_API_KEY
 const QRISGOPAY_API_KEY = process.env.BTZ_QRISGOPAY_API_KEY || process.env.QRISGOPAY_API_KEY || ''
@@ -249,7 +248,6 @@ app.get('/api/health', async (req, res) => {
         { id: 'gateway', label: 'Betabotz Paygate', status: 'unknown', detail: 'Memeriksa konektivitas gateway…' },
         { id: 'storage', label: 'JSONBin storage', status: 'unknown', detail: 'Memeriksa koneksi penyimpanan…' },
         { id: 'whatsapp', label: 'WhatsApp OTP · Wapito', status: WAPITO_API_KEY ? 'configured' : 'warning', detail: WAPITO_API_KEY ? 'Token Wapito tersedia; health check tidak mengirim pesan tes.' : 'WAPITO_API_KEY belum diisi; OTP dan notifikasi WhatsApp belum aktif.' },
-        { id: 'callback', label: 'Callback URL', status: /^https:\/\//i.test(BTZ_CALLBACK_URL) ? 'configured' : 'error', detail: BTZ_CALLBACK_URL },
         { id: 'return', label: 'Return URL', status: /^https:\/\//i.test(BTZ_RETURN_URL) ? 'configured' : 'error', detail: BTZ_RETURN_URL },
         { id: 'otp-secret', label: 'OTP hash secret', status: OTP_HASH_SECRET ? 'configured' : 'warning', detail: OTP_HASH_SECRET ? 'Secret tersedia.' : 'OTP_HASH_SECRET belum diisi; set secret acak yang stabil di ENV.' }
     ]
@@ -287,60 +285,6 @@ app.get('/api/health', async (req, res) => {
     const failure = checks.some(item => item.status === 'error' || item.status === 'down')
     const warning = checks.some(item => ['warning', 'unknown'].includes(item.status))
     res.json({ success: true, overall: failure || warning ? 'degraded' : 'operational', timestamp: new Date().toISOString(), uptimeSeconds: Math.round(process.uptime()), responseMs: Date.now() - startedAt, checks })
-})
-
-app.post('/api/paygate/callback', async (req, res) => {
-    try {
-        const payload = req.body || {}
-        const id = String(payload.pay_id || payload.transactionId || payload.transaction_id || payload.id || payload.raw?.data?.transactionId || payload.raw?.data?.id || '').trim()
-        if (!id) return res.status(400).json({ success: false, message: 'ID transaksi callback tidak ditemukan.' })
-        const db = await loadDb()
-        if (!databaseAvailable(res)) return
-        const trx = (db.history || []).find(item => String(item.transactionId) === id)
-        if (!trx || !trx.accessKey) return res.status(404).json({ success: false, message: 'Transaksi lokal tidak ditemukan.' })
-
-        const verifiedResponse = await fetch(`${BTZ_BASE_URL}/api/qris/transaction/${encodeURIComponent(id)}?key=${encodeURIComponent(String(trx.accessKey))}`, { signal: AbortSignal.timeout(8000) })
-        const verifiedJson = await verifiedResponse.json().catch(() => null)
-        if (!verifiedResponse.ok || !verifiedJson?.success || !verifiedJson?.data) return res.status(502).json({ success: false, message: 'Callback belum dapat diverifikasi melalui gateway.' })
-
-        const remote = verifiedJson.data
-        const remoteId = String(remote.transactionId || remote.id || id)
-        if (remoteId !== id) return res.status(409).json({ success: false, message: 'ID transaksi gateway tidak cocok.' })
-        const remoteAmount = Number(remote.amount)
-        if (Number.isFinite(remoteAmount) && remoteAmount > 0 && ![Number(trx.amount), Number(trx.totalAmount)].includes(remoteAmount)) return res.status(409).json({ success: false, message: 'Nominal transaksi gateway tidak cocok.' })
-        const nextStatus = String(remote.status || '').toLowerCase()
-        if (!nextStatus) return res.status(502).json({ success: false, message: 'Status transaksi tidak tersedia dari gateway.' })
-        const previousStatus = String(trx.status || 'pending')
-        const terminal = value => ['success', 'sukses', 'paid', 'completed', 'gagal', 'failed', 'expired', 'cancel', 'cancelled', 'canceled', 'refunded', 'refund', 'chargeback', 'charge_back', 'charge-back'].includes(String(value || '').toLowerCase())
-        const preserveTerminalAgainstStalePending = terminal(previousStatus) && ['pending', 'processing', 'waiting'].includes(nextStatus)
-        const finalStatus = preserveTerminalAgainstStalePending ? previousStatus : nextStatus
-        const changed = finalStatus !== previousStatus
-        trx.status = finalStatus
-        if (isPaid(finalStatus)) {
-            trx.paidAt = trx.paidAt || remote.paidAt || new Date().toISOString()
-            if (!trx.userId) trx.earnedBadges = [...new Set([...(trx.earnedBadges || []), 'Anonymous Hero'])]
-        }
-        if (changed) {
-            db.notifications = db.notifications || []
-            const eventKey = `payment:${id}:${finalStatus}`
-            if (!db.notifications.some(item => item.eventKey === eventKey)) db.notifications.unshift({ id: `NTF-${Date.now()}`, eventKey, transactionId: id, accessKey: trx.accessKey, type: 'payment', title: 'Status pembayaran diperbarui', message: `Status transaksi berubah dari ${previousStatus} menjadi ${finalStatus}.`, createdAt: new Date().toISOString(), read: false })
-        }
-        trx.callbackReceivedAt = new Date().toISOString()
-        trx.callbackPayloadStatus = String(payload.status || payload.raw?.data?.status || '')
-        const persisted = await saveDb(db)
-        if (!JSONBIN_ID || !JSONBIN_KEY || !persisted) return res.status(503).json({ success: false, message: 'Callback belum tersimpan secara persisten. Periksa JSONBIN_ID dan JSONBIN_KEY; provider dapat mencoba lagi.' })
-
-        if (isVerifiedMember(db, trx) && changed && ['success', 'sukses', 'paid', 'completed', 'gagal', 'failed', 'expired', 'cancel', 'cancelled', 'canceled'].includes(String(finalStatus).toLowerCase())) {
-            const statusBody = `KAXEL DONATE - Status pembayaran diperbarui\nInvoice: ${trx.invoiceNumber || `INV-${id}`}\nID transaksi: ${id}\nStatus: ${finalStatus}\nNominal donasi: Rp${Number(trx.amount || 0).toLocaleString('id-ID')}\nTotal pembayaran: Rp${Number(trx.totalAmount || trx.amount || 0).toLocaleString('id-ID')}`
-            await deliverMemberWhatsAppOnce(db, trx, `status:${id}:${String(finalStatus).toLowerCase()}`, statusBody)
-        }
-        if (isVerifiedMember(db, trx) && isPaid(finalStatus)) {
-            await deliverMemberWhatsAppOnce(db, trx, `invoice:${id}:${String(finalStatus).toLowerCase()}`, `KAXEL DONATE - Invoice ${trx.invoiceNumber || `INV-${id}`}\nPembayaran sudah terverifikasi.\nNominal donasi: Rp${Number(trx.amount || 0).toLocaleString('id-ID')}\nTotal pembayaran: Rp${Number(trx.totalAmount || trx.amount || 0).toLocaleString('id-ID')}\nBuka dashboard member untuk melihat atau mencetak invoice.`)
-        }
-        res.status(200).json({ success: true, verified: true, transactionId: id, status: finalStatus })
-    } catch {
-        res.status(500).json({ success: false, message: 'Gagal memproses callback pembayaran.' })
-    }
 })
 
 app.post('/api/auth/request-otp', async (req, res) => {
@@ -515,7 +459,10 @@ app.post('/api/donate', async (req, res) => {
         const cleanWa = registeredUser ? registeredUser.phone : ''
         const configuredFeePercent = registeredUser ? OTP_FEE_PERCENT : ANONYMOUS_FEE_PERCENT
         const feePercent = DONATION_FEE_ENABLED ? configuredFeePercent : 0
+        // Fee dasar tetap mengikuti persentase konfigurasi. Betabotz akan menambahkan
+        // kode unik acak 0-199 pada total transaksi yang masih pending (race-safe).
         const feeAmount = DONATION_FEE_ENABLED ? getFee(parsedAmount, configuredFeePercent) : 0
+        const orderId = `DONASI-${crypto.randomUUID()}`
 
         const createRes = await fetch(`${BTZ_BASE_URL}/api/qris/create`, {
             method: 'POST',
@@ -526,10 +473,9 @@ app.post('/api/donate', async (req, res) => {
                 fee: feeAmount,
                 notes: trxNotes,
                 timeout: 1200000,
-                callback_url: BTZ_CALLBACK_URL,
                 return_url: BTZ_RETURN_URL,
                 metadata: {
-                    orderId: `DONASI-${Date.now()}`,
+                    orderId,
                     sender: senderName
                 },
                 customerInfo: {
@@ -552,6 +498,12 @@ app.post('/api/donate', async (req, res) => {
         }
 
         const trx = createJson.data
+        const gatewayAmount = Number(trx.amount ?? parsedAmount)
+        const gatewayFee = Number(trx.fee ?? feeAmount)
+        const gatewayTotal = Number(trx.totalAmount ?? (gatewayAmount + gatewayFee))
+        if (!Number.isSafeInteger(gatewayAmount) || gatewayAmount !== parsedAmount || !Number.isSafeInteger(gatewayFee) || gatewayFee < 0 || !Number.isSafeInteger(gatewayTotal) || gatewayTotal !== gatewayAmount + gatewayFee) {
+            return res.status(502).json({ success: false, message: 'Respons nominal dari gateway tidak konsisten. Transaksi tidak ditampilkan; hubungi admin dengan ID transaksi gateway.' })
+        }
         let qrBase64 = ''
 
         if (['qris', 'qrisdana', 'qrisgopay'].includes(selectedMethod)) {
@@ -569,9 +521,19 @@ app.post('/api/donate', async (req, res) => {
             return res.status(502).json({ success: false, message: 'Gateway tidak mengembalikan paymentUrl ShopeePay. Periksa konfigurasi payment method di Betabotz Paygate.' })
         }
 
-        db.history.unshift({
+        // Baca ulang sebelum menyimpan agar transaksi lain yang masuk selama request
+        // gateway berlangsung tidak tertimpa oleh snapshot DB yang sudah usang.
+        const latestDb = await loadDb()
+        if (!databaseAvailable(res)) return
+        if ((latestDb.history || []).some(item => item.transactionId === trx.transactionId)) {
+            return res.status(409).json({ success: false, message: 'ID transaksi gateway sudah tercatat. Silakan periksa riwayat sebelum mencoba lagi.' })
+        }
+        latestDb.history.unshift({
             transactionId: trx.transactionId,
             accessKey: trx.accessKey,
+            orderId,
+            baseFee: feeAmount,
+            uniqueFee: Math.max(0, gatewayFee - feeAmount),
             name: senderName,
             publicName: registeredUser && registeredUser.showPublicIdentity === false ? 'Anonim' : senderName,
             whatsapp: cleanWa,
@@ -582,9 +544,9 @@ app.post('/api/donate', async (req, res) => {
             configuredFeePercent,
             feePercentApplied: feePercent,
             feeEnabled: DONATION_FEE_ENABLED,
-            amount: Number(trx.amount ?? parsedAmount),
-            fee: Number(trx.fee ?? feeAmount),
-            totalAmount: Number(trx.totalAmount ?? (parsedAmount + feeAmount)),
+            amount: gatewayAmount,
+            fee: gatewayFee,
+            totalAmount: gatewayTotal,
             invoiceNumber: `INV-${String(trx.transactionId).replace(/[^a-zA-Z0-9-]/g, '').slice(0, 48)}`,
             gatewayReference: trx.transactionId,
             paymentMethod: selectedMethod,
@@ -598,9 +560,9 @@ app.post('/api/donate', async (req, res) => {
             comments: [],
             paidAt: null
         })
-        const trxPersisted = await saveDb(db)
+        const trxPersisted = await saveDb(latestDb)
         if (process.env.VERCEL && !trxPersisted) return res.status(503).json({ success: false, message: 'Transaksi gagal disimpan. Periksa JSONBIN_ID dan JSONBIN_KEY lalu coba lagi.' })
-        const savedTrx = db.history[0]
+        const savedTrx = latestDb.history[0]
 
         res.json({
             success: true,
