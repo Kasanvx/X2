@@ -6,15 +6,10 @@ import crypto from 'node:crypto'
 dotenv.config()
 
 const app = express()
-const BTZ_BASE_URL = new URL(process.env.BTZ_BASE_URL || 'https://web.btzpay.my.id').origin
+const APIQRIS_BASE_URL = 'https://app.apiqris.com/v1'
+const APIQRIS_API_KEY = process.env.APIQRIS_API_KEY || ''
+const APIQRIS_MERCHANT_CODE = process.env.APIQRIS_MERCHANT_CODE || '478143523796'
 const SITE_URL = String(process.env.SITE_URL || 'https://donate.khasan.site').replace(/\/+$/, '')
-const BTZ_RETURN_URL = String(process.env.BTZ_RETURN_URL || `${SITE_URL}/success`).replace(/\/+$/, '')
-const API_KEY = process.env.BTZ_API_KEY
-const QRISGOPAY_API_KEY = process.env.BTZ_QRISGOPAY_API_KEY || process.env.QRISGOPAY_API_KEY || ''
-const QRISDANA_API_KEY = process.env.BTZ_QRISDANA_API_KEY || process.env.QRISDANA_API_KEY || ''
-const SHOPEEPAY_API_KEY = process.env.BTZ_SHOPEEPAY_API_KEY || process.env.SHOPEEPAY_API_KEY || ''
-const SHOPEEPAY_ACCOUNT_NUMBER = process.env.BTZ_SHOPEEPAY_ACCOUNT_NUMBER || ''
-const SHOPEEPAY_ACCOUNT_NAME = process.env.BTZ_SHOPEEPAY_ACCOUNT_NAME || ''
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || ''
 const parsePercent = (value, fallback) => { const parsed = Number(value); return Number.isFinite(parsed) && parsed >= 0 && parsed <= 100 ? parsed : fallback }
 const ANONYMOUS_FEE_PERCENT = parsePercent(process.env.ANONYMOUS_FEE_PERCENT ?? process.env.FEE_PERCENT ?? '0.7', 0.7)
@@ -244,22 +239,22 @@ app.get('/api/health', async (req, res) => {
         { id: 'api', label: 'API website', status: 'operational', detail: 'Endpoint API merespons.' },
         { id: 'qrisgopay', label: 'QRIS GoPay', status: 'maintenance', detail: 'Metode dinonaktifkan sementara.' },
         { id: 'qris', label: 'QRIS alternatif', status: 'maintenance', detail: 'Metode pembayaran sedang maintenance dan tidak dapat dipilih.' },
-        { id: 'qrisdana', label: 'QRIS DANA utama', status: QRISDANA_API_KEY ? 'configured' : 'error', detail: QRISDANA_API_KEY ? 'API key tersedia; transaksi nyata tetap memerlukan tes gateway.' : 'BTZ_QRISDANA_API_KEY belum diisi.' },
-        { id: 'gateway', label: 'Betabotz Paygate', status: 'unknown', detail: 'Memeriksa konektivitas gateway…' },
+        { id: 'qrisdana', label: 'APIQris', status: APIQRIS_API_KEY ? 'configured' : 'error', detail: APIQRIS_API_KEY ? 'API key tersedia; transaksi nyata tetap memerlukan tes gateway.' : 'APIQRIS_API_KEY belum diisi.' },
+        { id: 'gateway', label: 'APIQris', status: 'unknown', detail: 'Memeriksa konektivitas gateway…' },
         { id: 'storage', label: 'JSONBin storage', status: 'unknown', detail: 'Memeriksa koneksi penyimpanan…' },
         { id: 'whatsapp', label: 'WhatsApp OTP · Wapito', status: WAPITO_API_KEY ? 'configured' : 'warning', detail: WAPITO_API_KEY ? 'Token Wapito tersedia; health check tidak mengirim pesan tes.' : 'WAPITO_API_KEY belum diisi; OTP dan notifikasi WhatsApp belum aktif.' },
-        { id: 'return', label: 'Return URL', status: /^https:\/\//i.test(BTZ_RETURN_URL) ? 'configured' : 'error', detail: BTZ_RETURN_URL },
+        { id: 'return', label: 'Polling pembayaran', status: 'configured', detail: 'Status pembayaran diverifikasi langsung ke APIQris.' },
         { id: 'otp-secret', label: 'OTP hash secret', status: OTP_HASH_SECRET ? 'configured' : 'warning', detail: OTP_HASH_SECRET ? 'Secret tersedia.' : 'OTP_HASH_SECRET belum diisi; set secret acak yang stabil di ENV.' }
     ]
     try {
-        const response = await fetch(BTZ_BASE_URL, { method: 'GET', signal: AbortSignal.timeout(4000) })
+        const response = await fetch(`${APIQRIS_BASE_URL}/me`, { headers: { 'x-api-key': APIQRIS_API_KEY }, method: 'GET', signal: AbortSignal.timeout(4000) })
         const gateway = checks.find(item => item.id === 'gateway')
         gateway.status = response.ok ? 'reachable' : 'warning'
-        gateway.detail = `Host gateway merespons HTTP ${response.status}. Ini bukan uji pembuatan transaksi.`
+        gateway.detail = `APIQris /me merespons HTTP ${response.status}. Ini bukan uji pembuatan transaksi.`
     } catch {
         const gateway = checks.find(item => item.id === 'gateway')
         gateway.status = 'error'
-        gateway.detail = 'Host gateway tidak dapat dijangkau dari fungsi server.'
+        gateway.detail = 'APIQris tidak dapat dijangkau dari fungsi server.'
     }
     if (JSONBIN_ID && JSONBIN_KEY) {
         try {
@@ -427,164 +422,83 @@ app.post('/api/admin/chats/reply', async (req, res) => {
 
 app.post('/api/donate', async (req, res) => {
     try {
-        const { name, amount, notes, emoji, whatsapp, paymentMethod = 'qris' } = req.body
+        if (!APIQRIS_API_KEY) return res.status(503).json({ success: false, message: 'APIQris belum dikonfigurasi. Tambahkan APIQRIS_API_KEY di Vercel.' })
+        const { name, amount, notes, emoji, paymentMethod = 'qrisdana' } = req.body
         const selectedMethod = String(paymentMethod).toLowerCase()
-        if (selectedMethod === 'qrisgopay') return res.status(503).json({ success: false, message: 'QRIS GoPay sedang maintenance. Silakan pilih QRIS DANA.' })
-        if (selectedMethod === 'qris') return res.status(503).json({ success: false, message: 'QRIS alternatif sedang maintenance. Silakan gunakan QRIS DANA.' })
-        if (!['qrisdana', 'qris', 'shopeepay'].includes(selectedMethod)) return res.status(400).json({ success: false, message: 'Metode pembayaran tidak tersedia.' })
-        const selectedApiKey = selectedMethod === 'shopeepay' ? SHOPEEPAY_API_KEY : selectedMethod === 'qrisgopay' ? QRISGOPAY_API_KEY : selectedMethod === 'qrisdana' ? QRISDANA_API_KEY : API_KEY
-        if (!selectedApiKey) {
-            const message = selectedMethod === 'shopeepay'
-                ? 'API key ShopeePay belum dipasang. Tambahkan BTZ_SHOPEEPAY_API_KEY di Environment Variables.'
-                : selectedMethod === 'qrisgopay'
-                    ? 'API key QRIS GoPay belum dipasang. Tambahkan BTZ_QRISGOPAY_API_KEY di Environment Variables.'
-                    : selectedMethod === 'qrisdana'
-                    ? 'API key QRISDANA belum dipasang. Tambahkan BTZ_QRISDANA_API_KEY atau QRISDANA_API_KEY di Environment Variables.'
-                    : 'API Key QRIS belum dipasang di Environment Variables.'
-            return res.status(500).json({ success: false, message })
-        }
-        if (selectedMethod === 'shopeepay' && (!SHOPEEPAY_ACCOUNT_NUMBER || !SHOPEEPAY_ACCOUNT_NAME)) return res.status(500).json({ success: false, message: 'Tujuan ShopeePay belum dikonfigurasi. Tambahkan BTZ_SHOPEEPAY_ACCOUNT_NUMBER dan BTZ_SHOPEEPAY_ACCOUNT_NAME di Environment Variables.' })
-        // Accept only a whole, safe integer amount; parseInt would silently accept
-        // malformed values such as "2000abc" or truncate decimal amounts.
+        if (!['qrisdana', 'qris'].includes(selectedMethod)) return res.status(400).json({ success: false, message: 'Saat ini APIQris menyediakan pembayaran QRIS.' })
         const amountText = typeof amount === 'number' ? String(amount) : String(amount ?? '').trim()
         const parsedAmount = /^\d+$/.test(amountText) ? Number(amountText) : NaN
-        if (!Number.isSafeInteger(parsedAmount) || parsedAmount < 2000) {
-            return res.status(400).json({ success: false, message: 'Nominal harus berupa bilangan bulat minimal Rp2.000.' })
-        }
-
+        if (!Number.isSafeInteger(parsedAmount) || parsedAmount < 1000 || parsedAmount > 10000000) return res.status(400).json({ success: false, message: 'Nominal donasi harus Rp1.000–Rp10.000.000.' })
         const db = await loadDb()
         if (!databaseAvailable(res)) return
         const registeredUser = getUserFromToken(req, db)
-        const senderName = registeredUser ? (registeredUser.name || 'Donatur') : 'Anonim'
-        const trxNotes = notes?.trim() || 'Semangat terus Kaxel!'
+        const senderName = registeredUser ? (registeredUser.name || 'Donatur') : (String(name || '').trim().slice(0, 80) || 'Anonim')
+        const trxNotes = String(notes || '').trim().slice(0, 500) || 'Semangat terus Kaxel!'
         const chosenEmoji = emoji || 'support'
-        const cleanWa = registeredUser ? registeredUser.phone : ''
+        const cleanWa = registeredUser?.phone || ''
         const configuredFeePercent = registeredUser ? OTP_FEE_PERCENT : ANONYMOUS_FEE_PERCENT
         const feePercent = DONATION_FEE_ENABLED ? configuredFeePercent : 0
-        // Fee dasar tetap mengikuti persentase konfigurasi. Betabotz akan menambahkan
-        // kode unik acak 0-199 pada total transaksi yang masih pending (race-safe).
         const feeAmount = DONATION_FEE_ENABLED ? getFee(parsedAmount, configuredFeePercent) : 0
-        const orderId = `DONASI-${crypto.randomUUID()}`
-
-        const createRes = await fetch(`${BTZ_BASE_URL}/api/qris/create`, {
+        const gatewayCharge = parsedAmount + feeAmount
+        if (gatewayCharge > 10000000) return res.status(400).json({ success: false, message: 'Nominal termasuk biaya donasi melebihi batas APIQris Rp10.000.000.' })
+        const orderId = `KAXEL-${crypto.randomUUID()}`
+        const createRes = await fetch(`${APIQRIS_BASE_URL}/invoices`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'x-api-key': APIQRIS_API_KEY, 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                apikey: selectedApiKey,
-                amount: parsedAmount,
-                fee: feeAmount,
-                notes: trxNotes,
-                timeout: 1200000,
-                return_url: BTZ_RETURN_URL,
-                metadata: {
-                    orderId,
-                    sender: senderName
-                },
-                customerInfo: {
-                    name: senderName,
-                    email: '',
-                    phone: cleanWa
-                },
-                ...(selectedMethod === 'shopeepay' ? {
-                    accountNumber: SHOPEEPAY_ACCOUNT_NUMBER,
-                    accountName: SHOPEEPAY_ACCOUNT_NAME
-                } : {})
+                order_id: orderId,
+                ref_id: orderId,
+                amount: gatewayCharge,
+                keterangan: `Donasi Kaxel - ${trxNotes}`.slice(0, 200),
+                description: `Donasi Kaxel - ${trxNotes}`.slice(0, 200),
+                customer: { name: senderName },
+                whatsapp_buyer: cleanWa,
+                metadata: { source: 'kaxel-donate', sender: senderName, donation_amount: parsedAmount, donation_fee: feeAmount }
             }),
             signal: AbortSignal.timeout(12000)
         })
-
         const createJson = await createRes.json().catch(() => null)
-
-        if (!createRes.ok || !createJson?.success || !createJson.data?.transactionId) {
-            return res.status(createRes.ok ? 400 : 502).json({ success: false, message: createJson?.message || `Gagal membuat transaksi ${selectedMethod === 'shopeepay' ? 'ShopeePay' : selectedMethod === 'qrisdana' ? 'QRISDANA' : 'QRIS'}.` })
+        const gatewayTrx = createJson?.data
+        if (!createRes.ok || !gatewayTrx?.id || !['pending', 'paid'].includes(String(gatewayTrx.status || '').toLowerCase())) {
+            const code = createJson?.error?.code || ''
+            const message = createJson?.error?.message || createJson?.message || `APIQris gagal membuat invoice (HTTP ${createRes.status}).`
+            return res.status(createRes.status === 402 ? 402 : createRes.status === 429 ? 429 : 502).json({ success: false, code, message })
         }
-
-        const trx = createJson.data
-        const gatewayAmount = Number(trx.amount ?? parsedAmount)
-        const gatewayFee = Number(trx.fee ?? feeAmount)
-        const gatewayTotal = Number(trx.totalAmount ?? (gatewayAmount + gatewayFee))
-        if (!Number.isSafeInteger(gatewayAmount) || gatewayAmount !== parsedAmount || !Number.isSafeInteger(gatewayFee) || gatewayFee < 0 || !Number.isSafeInteger(gatewayTotal) || gatewayTotal !== gatewayAmount + gatewayFee) {
-            return res.status(502).json({ success: false, message: 'Respons nominal dari gateway tidak konsisten. Transaksi tidak ditampilkan; hubungi admin dengan ID transaksi gateway.' })
+        const gatewayAmount = Number(gatewayTrx.amount)
+        const gatewayTotal = Number(gatewayTrx.total_amount)
+        const uniqueCode = Number(gatewayTrx.unique_code || 0)
+        if (!Number.isSafeInteger(gatewayAmount) || gatewayAmount !== gatewayCharge || !Number.isSafeInteger(gatewayTotal) || gatewayTotal !== gatewayAmount + uniqueCode || !Number.isSafeInteger(uniqueCode) || uniqueCode < 0) {
+            return res.status(502).json({ success: false, message: 'Nominal atau kode unik dari APIQris tidak konsisten. Jangan lakukan pembayaran; hubungi admin.' })
         }
-        let qrBase64 = ''
-
-        if (['qris', 'qrisdana', 'qrisgopay'].includes(selectedMethod)) {
-            if (!trx.qrisString) return res.status(400).json({ success: false, message: 'Gateway tidak mengembalikan data QRIS untuk transaksi ini.' })
-            const qrRes = await fetch(`${BTZ_BASE_URL}/api/qris/create-qr-code`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ data: trx.qrisString, size: '500x500', style: '4', color: '0f1056', format: 'png', pngMode: 'styled', viewer: '0' }),
-                signal: AbortSignal.timeout(8000)
-            })
-            if (!qrRes.ok) return res.status(500).json({ success: false, message: 'Gagal membuat gambar QR.' })
-            const qrBuffer = await qrRes.arrayBuffer()
-            qrBase64 = `data:image/png;base64,${Buffer.from(qrBuffer).toString('base64')}`
-        } else if (!trx.paymentUrl) {
-            return res.status(502).json({ success: false, message: 'Gateway tidak mengembalikan paymentUrl ShopeePay. Periksa konfigurasi payment method di Betabotz Paygate.' })
-        }
-
-        // Baca ulang sebelum menyimpan agar transaksi lain yang masuk selama request
-        // gateway berlangsung tidak tertimpa oleh snapshot DB yang sudah usang.
+        if (!gatewayTrx.qr_image_url && !gatewayTrx.qris_content) return res.status(502).json({ success: false, message: 'APIQris tidak mengembalikan QRIS untuk invoice ini.' })
+        const transactionId = String(gatewayTrx.id)
         const latestDb = await loadDb()
         if (!databaseAvailable(res)) return
-        if ((latestDb.history || []).some(item => item.transactionId === trx.transactionId)) {
-            return res.status(409).json({ success: false, message: 'ID transaksi gateway sudah tercatat. Silakan periksa riwayat sebelum mencoba lagi.' })
-        }
-        latestDb.history.unshift({
-            transactionId: trx.transactionId,
-            accessKey: trx.accessKey,
-            orderId,
-            baseFee: feeAmount,
-            uniqueFee: Math.max(0, gatewayFee - feeAmount),
-            name: senderName,
+        if ((latestDb.history || []).some(item => item.transactionId === transactionId || item.orderId === orderId)) return res.status(409).json({ success: false, message: 'Invoice APIQris sudah tercatat. Periksa riwayat transaksi.' })
+        const accessKey = crypto.randomBytes(24).toString('hex')
+        const saved = {
+            transactionId, gatewayInvoiceId: transactionId, gateway: 'apiqris', accessKey, orderId,
+            baseFee: feeAmount, uniqueFee: uniqueCode, name: senderName,
             publicName: registeredUser && registeredUser.showPublicIdentity === false ? 'Anonim' : senderName,
-            whatsapp: cleanWa,
-            userId: registeredUser?.id || null,
+            whatsapp: cleanWa, userId: registeredUser?.id || null,
             registered: Boolean(registeredUser && (registeredUser.whatsappVerifiedAt || registeredUser.createdAt)),
             whatsappVerifiedAt: registeredUser?.whatsappVerifiedAt || null,
-            feePercent,
-            configuredFeePercent,
-            feePercentApplied: feePercent,
-            feeEnabled: DONATION_FEE_ENABLED,
-            amount: gatewayAmount,
-            fee: gatewayFee,
-            totalAmount: gatewayTotal,
-            invoiceNumber: `INV-${String(trx.transactionId).replace(/[^a-zA-Z0-9-]/g, '').slice(0, 48)}`,
-            gatewayReference: trx.transactionId,
-            paymentMethod: selectedMethod,
-            paymentUrl: trx.paymentUrl || '',
-            accountDetails: trx.accountDetails || {},
-            notes: trxNotes,
-            emoji: chosenEmoji,
-            status: 'pending',
-            createdAt: new Date().toISOString(),
-            expiredAt: trx.expiredAt || new Date(Date.now() + 1200000).toISOString(),
-            comments: [],
-            paidAt: null
-        })
-        const trxPersisted = await saveDb(latestDb)
-        if (process.env.VERCEL && !trxPersisted) return res.status(503).json({ success: false, message: 'Transaksi gagal disimpan. Periksa JSONBIN_ID dan JSONBIN_KEY lalu coba lagi.' })
-        const savedTrx = latestDb.history[0]
-
-        res.json({
-            success: true,
-            data: {
-                transactionId: trx.transactionId,
-                accessKey: trx.accessKey,
-                name: senderName,
-                amount: savedTrx.amount,
-                fee: savedTrx.fee,
-                totalAmount: savedTrx.totalAmount,
-                paymentMethod: selectedMethod,
-                paymentUrl: trx.paymentUrl || '',
-                accountDetails: trx.accountDetails || {},
-                expiredAt: trx.expiredAt || new Date(Date.now() + 1200000).toISOString(),
-                notes: trxNotes,
-                qrImage: qrBase64
-            }
-        })
+            feePercent, configuredFeePercent, feePercentApplied: feePercent, feeEnabled: DONATION_FEE_ENABLED,
+            amount: parsedAmount, fee: feeAmount + uniqueCode, totalAmount: gatewayTotal,
+            invoiceNumber: `INV-${transactionId.slice(0, 12).toUpperCase()}`, gatewayReference: orderId,
+            paymentMethod: 'qrisdana', paymentUrl: gatewayTrx.pay_url || '',
+            qrImageUrl: gatewayTrx.qr_image_url || '', qrisContent: gatewayTrx.qris_content || '',
+            apiqrisAmount: gatewayAmount, apiqrisFee: Number(gatewayTrx.fee || 0),
+            notes: trxNotes, emoji: chosenEmoji, status: String(gatewayTrx.status).toLowerCase(),
+            createdAt: new Date().toISOString(), expiredAt: gatewayTrx.expires_at || new Date(Date.now() + 3600000).toISOString(),
+            comments: [], paidAt: gatewayTrx.paid_at || null
+        }
+        latestDb.history.unshift(saved)
+        const persisted = await saveDb(latestDb)
+        if (process.env.VERCEL && !persisted) return res.status(503).json({ success: false, message: 'Invoice sudah dibuat APIQris tetapi belum berhasil disimpan. Jangan membuat pembayaran baru; hubungi admin dan gunakan order reference berikut: ' + orderId })
+        res.json({ success: true, data: { transactionId, accessKey, name: senderName, amount: saved.amount, fee: saved.fee, totalAmount: saved.totalAmount, paymentMethod: 'qrisdana', paymentUrl: saved.paymentUrl, accountDetails: {}, expiredAt: saved.expiredAt, notes: trxNotes, qrImage: saved.qrImageUrl, qrisContent: saved.qrisContent, orderId } })
     } catch (error) {
-        res.status(500).json({ success: false, message: 'Terjadi kesalahan pada server.' })
+        res.status(502).json({ success: false, message: error?.name === 'TimeoutError' ? 'APIQris timeout saat membuat invoice. Periksa riwayat sebelum mencoba ulang.' : 'Tidak dapat menghubungi APIQris. Periksa riwayat sebelum mencoba ulang.' })
     }
 })
 
@@ -596,14 +510,22 @@ app.get('/api/status/:id', async (req, res) => {
         if (!databaseAvailable(res)) return
         const localTrx = (db.history || []).find(item => item.transactionId === id && item.accessKey === String(key || ''))
         if (!localTrx) return res.status(403).json({ success: false, message: 'Akses transaksi tidak valid.' })
-        const checkRes = await fetch(`${BTZ_BASE_URL}/api/qris/transaction/${encodeURIComponent(id)}?key=${encodeURIComponent(String(key || ''))}`, { signal: AbortSignal.timeout(8000) })
-        const checkJson = await checkRes.json()
+        const checkRes = await fetch(`${APIQRIS_BASE_URL}/invoices/${encodeURIComponent(localTrx.gatewayInvoiceId || id)}`, { headers: { 'x-api-key': APIQRIS_API_KEY }, signal: AbortSignal.timeout(8000) })
+        const apiJson = await checkRes.json().catch(() => null)
+        if (!checkRes.ok || !apiJson?.data) return res.status(checkRes.status === 404 ? 404 : 502).json({ success: false, message: apiJson?.error?.message || 'Gagal memperoleh status terbaru dari APIQris.' })
+        const remote = apiJson.data
+        if (String(remote.id || '') !== String(localTrx.gatewayInvoiceId || id) || String(remote.ref_id || '') !== String(localTrx.orderId || '')) return res.status(502).json({ success: false, message: 'Identitas invoice APIQris tidak cocok dengan transaksi lokal.' })
+        const remoteTotal = Number(remote.total_amount)
+        if (!Number.isSafeInteger(remoteTotal) || remoteTotal !== Number(localTrx.totalAmount)) return res.status(502).json({ success: false, message: 'Total pembayaran APIQris tidak cocok dengan catatan website.' })
+        const remoteStatus = String(remote.status || '').toLowerCase()
+        if (!['pending', 'paid', 'expired', 'cancelled'].includes(remoteStatus)) return res.status(502).json({ success: false, message: 'Status APIQris tidak dikenal.' })
+        const checkJson = { success: true, data: { ...remote, transactionId: id, status: remoteStatus, amount: Number(localTrx.amount), totalAmount: remoteTotal, reference: localTrx.orderId } }
 
         if (checkJson.success && checkJson.data) {
             const gatewayTransactionId = String(checkJson.data.transactionId || checkJson.data.id || id)
             if (gatewayTransactionId !== id) return res.status(502).json({ success: false, message: 'Referensi transaksi gateway tidak cocok.' })
-            const gatewayAmount = Number(checkJson.data.amount)
-            if (Number.isFinite(gatewayAmount) && gatewayAmount > 0 && ![Number(localTrx.amount), Number(localTrx.totalAmount)].includes(gatewayAmount)) return res.status(502).json({ success: false, message: 'Nominal transaksi gateway tidak cocok dengan catatan website.' })
+            const gatewayAmount = Number(remote.amount)
+            if (Number.isFinite(gatewayAmount) && gatewayAmount > 0 && gatewayAmount !== Number(localTrx.apiqrisAmount ?? (Number(localTrx.amount) + Number(localTrx.baseFee || 0)))) return res.status(502).json({ success: false, message: 'Nominal transaksi gateway tidak cocok dengan catatan website.' })
             const changedByExpiry = normalizeExpiredTransactions(db, isPaid(checkJson.data.status) ? id : '')
             if (changedByExpiry) {
                 const expiryPersisted = await saveDb(db)
@@ -662,19 +584,12 @@ app.post('/api/cancel/:id', async (req, res) => {
         if (!databaseAvailable(res)) return
         const existingTrx = db.history.find(item => item.transactionId === id && item.accessKey === suppliedKey)
         if (!existingTrx) return res.status(404).json({ success: false, message: 'Transaksi tidak ditemukan.' })
-        const cancelApiKey = existingTrx.paymentMethod === 'shopeepay' ? SHOPEEPAY_API_KEY : existingTrx.paymentMethod === 'qrisgopay' ? QRISGOPAY_API_KEY : existingTrx.paymentMethod === 'qrisdana' ? QRISDANA_API_KEY : API_KEY
-        if (!cancelApiKey) return res.status(500).json({ success: false, message: 'API key untuk metode pembayaran ini belum dipasang.' })
-        const cancelRes = await fetch(`${BTZ_BASE_URL}/api/qris/cancel/${id}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ apikey: cancelApiKey, reason: 'cancelled_by_user' }),
-            signal: AbortSignal.timeout(8000)
-        })
-        const cancelJson = await cancelRes.json()
+        const cancelRes = await fetch(`${APIQRIS_BASE_URL}/invoices/${encodeURIComponent(existingTrx.gatewayInvoiceId || id)}/cancel`, { method: 'POST', headers: { 'x-api-key': APIQRIS_API_KEY, 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(8000) })
+        const cancelJson = await cancelRes.json().catch(() => null)
 
         const idx = db.history.findIndex(item => item.transactionId === id)
-        if (idx !== -1 && cancelJson.success) {
-            db.history[idx].status = cancelJson.data?.status || 'cancel'
+        if (idx !== -1 && cancelRes.ok && cancelJson?.data) {
+            db.history[idx].status = cancelJson.data?.status || 'cancelled'
             const cancelledStatus = String(db.history[idx].status)
             const eventKey = `payment:${id}:${cancelledStatus}`
             db.notifications = db.notifications || []
@@ -688,7 +603,7 @@ app.post('/api/cancel/:id', async (req, res) => {
             }
         }
 
-        res.status(cancelRes.status).json(cancelJson)
+        res.status(cancelRes.status).json(cancelRes.ok ? { success: true, data: cancelJson.data } : { success: false, message: cancelJson?.error?.message || 'APIQris menolak pembatalan.' })
     } catch (error) {
         res.status(500).json({ success: false, message: 'Gagal membatalkan transaksi.' })
     }
@@ -780,7 +695,7 @@ app.get('/api/invoice/:id', async (req, res) => {
 })
 
 app.get('/api/public-config', (req, res) => {
-    res.json({ success: true, fees: { enabled: DONATION_FEE_ENABLED, memberPercent: MEMBER_FEE_PERCENT, anonymousPercent: ANONYMOUS_FEE_PERCENT }, paymentMethods: { qrisgopay: { enabled: false, status: 'maintenance' }, qris: { enabled: false, status: 'maintenance' }, qrisdana: { enabled: Boolean(QRISDANA_API_KEY), status: QRISDANA_API_KEY ? 'available' : 'unconfigured' }, shopeepay: { enabled: Boolean(SHOPEEPAY_API_KEY && SHOPEEPAY_ACCOUNT_NUMBER && SHOPEEPAY_ACCOUNT_NAME), status: SHOPEEPAY_API_KEY && SHOPEEPAY_ACCOUNT_NUMBER && SHOPEEPAY_ACCOUNT_NAME ? 'available' : 'unconfigured' } } })
+    res.json({ success: true, fees: { enabled: DONATION_FEE_ENABLED, memberPercent: MEMBER_FEE_PERCENT, anonymousPercent: ANONYMOUS_FEE_PERCENT }, paymentMethods: { qrisgopay: { enabled: false, status: 'maintenance' }, qris: { enabled: Boolean(APIQRIS_API_KEY), status: APIQRIS_API_KEY ? 'available' : 'unconfigured' }, qrisdana: { enabled: Boolean(APIQRIS_API_KEY), status: APIQRIS_API_KEY ? 'available' : 'unconfigured' }, shopeepay: { enabled: false, status: 'unsupported' } } })
 })
 
 app.get('/api/public-stats', async (req, res) => {
