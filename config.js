@@ -2,14 +2,9 @@ import dotenv from 'dotenv'
 dotenv.config()
 
 const config = {
-    BTZ_BASE_URL: 'https://web.btzpay.my.id',
     SITE_URL: 'https://donate.khasan.site',
-    BTZ_API_KEY: '',
-    BTZ_QRISDANA_API_KEY: '',
-    BTZ_QRISGOPAY_API_KEY: '',
-    BTZ_SHOPEEPAY_API_KEY: '',
-    BTZ_SHOPEEPAY_ACCOUNT_NUMBER: '',
-    BTZ_SHOPEEPAY_ACCOUNT_NAME: '',
+    APIQRIS_API_KEY: '',
+    APIQRIS_MERCHANT_CODE: '478143523796',
     ADMIN_PASSWORD: '',
     JSONBIN_ID: '',
     JSONBIN_KEY: '',
