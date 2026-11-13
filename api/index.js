@@ -444,10 +444,12 @@ app.post('/api/donate', async (req, res) => {
             return res.status(500).json({ success: false, message })
         }
         if (selectedMethod === 'shopeepay' && (!SHOPEEPAY_ACCOUNT_NUMBER || !SHOPEEPAY_ACCOUNT_NAME)) return res.status(500).json({ success: false, message: 'Tujuan ShopeePay belum dikonfigurasi. Tambahkan BTZ_SHOPEEPAY_ACCOUNT_NUMBER dan BTZ_SHOPEEPAY_ACCOUNT_NAME di Environment Variables.' })
-        const parsedAmount = parseInt(amount)
-
-        if (!parsedAmount || isNaN(parsedAmount) || parsedAmount < 2000) {
-            return res.status(400).json({ success: false, message: 'Nominal minimal Rp2.000.' })
+        // Accept only a whole, safe integer amount; parseInt would silently accept
+        // malformed values such as "2000abc" or truncate decimal amounts.
+        const amountText = typeof amount === 'number' ? String(amount) : String(amount ?? '').trim()
+        const parsedAmount = /^\d+$/.test(amountText) ? Number(amountText) : NaN
+        if (!Number.isSafeInteger(parsedAmount) || parsedAmount < 2000) {
+            return res.status(400).json({ success: false, message: 'Nominal harus berupa bilangan bulat minimal Rp2.000.' })
         }
 
         const db = await loadDb()
@@ -491,10 +493,10 @@ app.post('/api/donate', async (req, res) => {
             signal: AbortSignal.timeout(12000)
         })
 
-        const createJson = await createRes.json()
+        const createJson = await createRes.json().catch(() => null)
 
-        if (!createJson.success || !createJson.data?.transactionId) {
-            return res.status(400).json({ success: false, message: createJson.message || `Gagal membuat transaksi ${selectedMethod === 'shopeepay' ? 'ShopeePay' : selectedMethod === 'qrisdana' ? 'QRISDANA' : 'QRIS'}.` })
+        if (!createRes.ok || !createJson?.success || !createJson.data?.transactionId) {
+            return res.status(createRes.ok ? 400 : 502).json({ success: false, message: createJson?.message || `Gagal membuat transaksi ${selectedMethod === 'shopeepay' ? 'ShopeePay' : selectedMethod === 'qrisdana' ? 'QRISDANA' : 'QRIS'}.` })
         }
 
         const trx = createJson.data
