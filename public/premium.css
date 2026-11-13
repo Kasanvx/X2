@@ -132,3 +132,11 @@ body[data-page="admin"] #loginBox{background:var(--surface)!important;color:var(
   .neo-card > #tab-account,
   .neo-card > #tab-chat { grid-column:2 !important; min-width:0 !important; }
 }
+
+/* Neo-Brutalism palette override */
+body, body[data-theme="dark"] { background:var(--bg)!important; color:var(--text)!important; }
+.goal-box,.neo-card,.account-gate-card,.account-hero-card,.account-section-card,.member-level-box,.member-stat-card,.badge-item-card,.feed-item,.transaction-row,.notice-panel,.comment-panel,.payment-instructions,.info-list,.qr-frame { background:var(--surface)!important; color:var(--text)!important; border:2px solid var(--line)!important; border-radius:7px!important; box-shadow:3px 3px 0 var(--line)!important; }
+.payment-option,.preset-btn,.emoji-btn { background:var(--surface-2)!important; color:var(--text)!important; border:2px solid var(--line)!important; border-radius:5px!important; }
+.payment-option.selected,.preset-btn:focus,.preset-btn:active,.emoji-btn.selected,.tab-btn.active { background:var(--accent)!important; color:#171717!important; border-color:var(--line)!important; }
+.badge-title,.account-gate-icon,.account-avatar,.leader-rank { background:var(--accent-soft)!important; color:var(--text)!important; border:1px solid var(--line)!important; }
+.progress-fill,.member-progress-bar { background:var(--primary)!important; }
