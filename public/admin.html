@@ -6,7 +6,6 @@
     <title>KAXEL ADMIN PANEL</title>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700;900&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
-    <link rel="stylesheet" href="/theme.css">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -94,8 +93,9 @@
         .hidden { display: none !important; }
     .icon-btn{display:inline-flex;align-items:center;gap:8px}.icon-btn svg,.lucide{width:18px;height:18px;vertical-align:middle}.reply-box{min-width:230px}.reply-box textarea{width:100%;padding:8px;border:2px solid #111;font:inherit;margin:6px 0}.reply-list{font-size:12px;margin-top:6px;white-space:normal}.notice{padding:10px;background:#dbeafe;border:2px solid #111;margin:12px 0}
     </style>
+    <link rel="stylesheet" href="/theme.css">
 </head>
-<body>
+<body data-page="admin">
 
     <div class="container admin-shell">
         <div id="loginBox" class="neo-box" style="max-width: 420px; margin: 60px auto;">
@@ -107,7 +107,7 @@
         </div>
 
         <div id="dashboardBox" class="hidden">
-            <div class="neo-box" style="background: #5ce1e6; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div class="neo-box admin-header">
                 <h1 class="icon-btn" style="font-weight: 900; font-size: 24px;"><i data-lucide="layout-dashboard"></i> KAXEL ADMIN DASHBOARD</h1>
                 <div style="display: flex; gap: 8px;">
                     <button onclick="fetchAdminData()" class="neo-btn icon-btn" style="background: #ffde59;"><i data-lucide="refresh-cw"></i> REFRESH</button>
@@ -115,7 +115,16 @@
                 </div>
             </div>
 
-            <div class="stats-grid">
+            <aside class="admin-sidebar" aria-label="Navigasi admin">
+                <span class="sidebar-label">Workspace</span>
+                <a class="active" href="#adminOverview"><i data-lucide="layout-dashboard"></i> Ringkasan</a>
+                <a href="#adminGoal"><i data-lucide="target"></i> Target donasi</a>
+                <a href="#adminTransactions"><i data-lucide="receipt-text"></i> Transaksi</a>
+                <a href="#adminChats"><i data-lucide="messages-square"></i> Live chat</a>
+                <a href="/" target="_self"><i data-lucide="external-link"></i> Website publik</a>
+            </aside>
+            <main class="admin-main">
+            <div class="stats-grid" id="adminOverview">
                 <div class="stat-card" style="background: #c1ff72;">
                     <h4>Total Pendapatan Bersih</h4>
                     <div id="statRevenue">Rp0</div>
@@ -130,7 +139,7 @@
                 </div>
             </div>
 
-            <div class="neo-box" style="background: #fff9db;">
+            <div class="neo-box" id="adminGoal">
                 <h3 style="font-weight: 900; margin-bottom: 12px; text-transform: uppercase;">Atur Target Donasi (Goal Bar)</h3>
                 <form id="goalForm" style="display: grid; grid-template-columns: 2fr 1fr auto; gap: 10px; align-items: start;">
                     <input type="text" id="goalTitleInput" placeholder="Judul Target (Misal: Upgrade VPS)" required class="neo-input" style="margin-bottom:0;">
@@ -139,7 +148,7 @@
                 </form>
             </div>
 
-            <div class="neo-box">
+            <div class="neo-box" id="adminTransactions">
                 <h3 style="font-weight: 900; margin-bottom: 16px; text-transform: uppercase;">Riwayat Semua Donasi & Nomor WA</h3>
                 <div class="table-wrap">
                     <table>
@@ -159,11 +168,12 @@
                     </table>
                 </div>
             </div>
-            <div class="neo-box" style="background:#f2fff0">
+            <div class="neo-box" id="adminChats">
                 <h3 style="font-weight:900;margin-bottom:12px;text-transform:uppercase">Live Chat Pengguna Terdaftar</h3>
                 <p>Pesan dari akun WhatsApp terverifikasi akan muncul di sini. Pilih percakapan untuk membalas.</p>
                 <div id="registeredChats" style="display:grid;gap:12px">Memuat percakapan...</div>
             </div>
+            </main>
         </div>
     </div>
 
