@@ -9,7 +9,6 @@ Website donasi Kaxel Support dengan tema Neo-Brutalism yang sudah ada, riwayat d
 - Health: `/health`
 - Status sistem: `/status`
 - Hasil kembali dari payment gateway: `/success`
-- Callback gateway: `/api/paygate/callback`
 
 URL shortcut dirutekan lewat `vercel.json`, sehingga pengguna tidak perlu menulis `.html` di akhir URL.
 
@@ -21,7 +20,6 @@ Variabel pembayaran yang wajib untuk metode utama:
 
 - `SITE_URL=https://donate.khasan.site`
 - `BTZ_BASE_URL=https://web.btzpay.my.id`
-- `BTZ_CALLBACK_URL=https://donate.khasan.site/api/paygate/callback`
 - `BTZ_RETURN_URL=https://donate.khasan.site/success`
 - `BTZ_QRISDANA_API_KEY`: API key payment method QRIS DANA dari Betabotz Paygate
 - `JSONBIN_ID` dan `JSONBIN_KEY`: **gunakan bin lama** supaya data histori/goal/member tetap terhubung
@@ -38,11 +36,11 @@ File `.env` diabaikan oleh Git; jangan commit file `.env` berisi token asli ke G
 
 OTP dan notifikasi akun sekarang dikirim melalui Wapito menggunakan header Bearer dan payload `to` dengan awalan `+` serta `body`. Respons provider berstatus `pending` tetap dianggap diterima ketika HTTP request berhasil, sesuai pola respons yang diberikan provider. Token hanya dibaca dari Environment Variable server dan tidak dikirim ke browser.
 
-## Pembayaran, callback, dan return
+## Pembayaran dan return
 
-Saat transaksi dibuat, backend mengirim `callback_url` dan `return_url` ke endpoint create Betabotz Paygate. Callback `/api/paygate/callback` tidak langsung mempercayai status di payload: server memeriksa kembali transaksi ke endpoint status gateway menggunakan access key yang tersimpan, memvalidasi ID/nominal, memperbarui status, dan mencatat notifikasi. Halaman `/success` memeriksa status transaksi lokal yang tersimpan pada browser melalui endpoint status; halaman itu tidak menganggap redirect sebagai bukti pembayaran sukses.
+Status transaksi diperiksa melalui polling browser ke `/api/status/:id` (interval 1 detik pada halaman donasi). Endpoint tersebut memvalidasi access key lokal, lalu meminta status langsung ke Betabotz Paygate dan memeriksa kecocokan ID serta nominal sebelum memperbarui histori. Halaman `/success` juga memeriksa status melalui endpoint yang sama; redirect dari gateway sendiri tidak dianggap sebagai bukti pembayaran sukses.
 
-Dokumentasi provider menjelaskan dukungan parameter `callback_url` dan `return_url` di request create serta status transaksi pada endpoint transaction: https://web.btzpay.my.id/documentation. Hasil nyata tetap bergantung pada API key/payment method dan callback yang dapat dijangkau dari provider.
+Pada implementasi saat ini belum ada route callback `/api/paygate/callback` dan backend tidak mengirim `callback_url`. Karena itu, jangan mengonfigurasi atau mengandalkan callback sampai integrasi callback benar-benar diimplementasikan dan diuji berdasarkan kontrak provider.
 
 ## Privasi anonim
 
@@ -50,7 +48,7 @@ Donasi tanpa akun diproses dan ditampilkan sebagai `Anonim`; alias yang dikirim 
 
 ## Health dan status
 
-`/health` dan `/status` memakai endpoint `/api/health`. Health memeriksa konektivitas gateway, akses baca JSONBin, konfigurasi metode utama, kesiapan konfigurasi Wapito untuk OTP/notifikasi, status metode QRIS, serta URL callback/return. Pemeriksaan tidak membuat transaksi uji atau mengirim OTP. Label “terjangkau/terkonfigurasi” bukan jaminan bahwa pembayaran produksi berhasil.
+`/health` dan `/status` memakai endpoint `/api/health`. Health memeriksa konektivitas gateway, akses baca JSONBin, konfigurasi metode utama, kesiapan konfigurasi Wapito untuk OTP/notifikasi, status metode QRIS, dan return URL. Pemeriksaan tidak membuat transaksi uji atau mengirim OTP. Label “terjangkau/terkonfigurasi” bukan jaminan bahwa pembayaran produksi berhasil.
 
 ## Menjalankan lokal
 
@@ -68,3 +66,13 @@ node --check api/index.js
 ```
 
 Catatan: aplikasi masih memakai JSONBin sebagai storage dokumen. JSONBin bukan database transaksional dengan atomic compare-and-set; untuk volume tinggi, rencanakan migrasi ke database transaksional sebelum mengandalkan proses bersamaan dalam skala besar.
+
+## UI theme
+
+The public donation page, member experience, admin dashboard, payment result, and service status pages share a Soft Nature visual theme. A floating theme control switches between light and dark mode. The preference is stored locally in the visitor's browser (`kaxel_theme_preference_v1`); it does not require an environment variable or backend change. Shared presentation assets are `public/theme.css` and `public/theme.js`.
+
+## UI design system (Neo Corporate)
+
+The public donation experience, member views, Sultan leaderboard, donation history, OTP onboarding, admin workspace, health dashboard, service status, and payment result pages use a shared Neo Corporate design system. Each page keeps a role-specific layout: public donation navigation, member activity views, an admin sidebar workspace, technical monitoring panels, and a focused payment-result view. Light and dark themes are available through the floating theme control and are saved locally in the browser.
+
+The redesign is presentation-only. It does not change API routes, payment processing, OTP behavior, JSONBin persistence, or environment-variable names.
