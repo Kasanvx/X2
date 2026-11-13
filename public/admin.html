@@ -6,6 +6,7 @@
     <title>KAXEL ADMIN PANEL</title>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700;900&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="/theme.css">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -96,7 +97,7 @@
 </head>
 <body>
 
-    <div class="container">
+    <div class="container admin-shell">
         <div id="loginBox" class="neo-box" style="max-width: 420px; margin: 60px auto;">
             <div class="title icon-btn"><i data-lucide="shield-check"></i> ADMIN LOGIN</div>
             <form id="loginForm">
@@ -166,6 +167,7 @@
         </div>
     </div>
 
+    <script src="/theme.js"></script>
     <script>
         let savedPassword = localStorage.getItem('kaxel_admin_password') || ''
         if (savedPassword) document.getElementById('adminPass').value = savedPassword

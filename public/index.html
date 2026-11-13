@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700;900&family=JetBrains+Mono:wght@600;800&display=swap" rel="stylesheet">
     <script defer src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
     <script defer src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="/theme.css">
     <style>
         :root {
             color-scheme: light;
@@ -1750,6 +1751,7 @@
             <h2 id="ownerIntroTitle">Tentang Kaxel Support</h2>
             <p>Kaxel Support adalah halaman donasi pribadi untuk mendukung Kasan dalam mengembangkan proyek teknologi, bot WhatsApp, dan website. Dana yang terkumpul digunakan untuk kebutuhan pengembangan, layanan server, domain, serta biaya operasional proyek. Terima kasih sudah ikut mendukung perjalanan ini.</p>
         </section>
+        <div class="dashboard-grid">
         <div class="goal-box">
             <div class="goal-header">
                 <span id="goalTitle">TARGET DONASI</span>
@@ -2082,8 +2084,10 @@
                 </div>
             </div>
         </div>
+        </div><!-- /.dashboard-grid -->
     </div>
 
+    <script defer src="/theme.js"></script>
     <script>
         const STORAGE_KEY = 'kaxel_active_donation_v2'
         let pollTimer = null
