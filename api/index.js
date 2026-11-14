@@ -26,7 +26,7 @@ const OTP_RESEND_MS = 60 * 1000
 const OTP_MAX_ATTEMPTS = 5
 const OTP_FEE_PERCENT = MEMBER_FEE_PERCENT
 
-app.use(express.json({ limit: '32kb' }))
+app.use(express.json({ limit: '256kb' }))
 app.set('trust proxy', 1)
 app.disable('x-powered-by')
 app.use((req, res, next) => {
@@ -294,14 +294,14 @@ app.post('/api/auth/verify-otp', async (req, res) => {
         db.otpChallenges = db.otpChallenges.filter(x => x.id !== challengeId)
         const userPersisted = await saveDb(db)
         if (process.env.VERCEL && !userPersisted) return res.status(503).json({ success: false, message: 'Akun gagal tersimpan. Periksa akses tulis JSONBin.' })
-        res.json({ success: true, user: { id: user.id, name: user.name, phone: user.phone, showPublicIdentity: user.showPublicIdentity !== false }, token: user.token })
+        res.json({ success: true, user: { id: user.id, name: user.name, phone: user.phone, profileImage: user.profileImage || null, showPublicIdentity: user.showPublicIdentity !== false }, token: user.token })
     } catch (e) { res.status(500).json({ success: false, message: 'Verifikasi OTP gagal.' }) }
 })
 
 app.get('/api/auth/me', async (req, res) => {
     const db = await loadDb(); if (!databaseAvailable(res)) return; const user = getUserFromToken(req, db)
     if (!user) return res.status(401).json({ success: false, message: 'Sesi login tidak valid.' })
-    res.json({ success: true, user: { id: user.id, name: user.name, phone: user.phone, createdAt: user.createdAt, showPublicIdentity: user.showPublicIdentity !== false, whatsappVerified: Boolean(user.whatsappVerifiedAt || user.createdAt) } })
+    res.json({ success: true, user: { id: user.id, name: user.name, phone: user.phone, createdAt: user.createdAt, profileImage: user.profileImage || null, showPublicIdentity: user.showPublicIdentity !== false, whatsappVerified: Boolean(user.whatsappVerifiedAt || user.createdAt) } })
 })
 
 app.get('/api/member/dashboard', async (req, res) => {
@@ -311,20 +311,44 @@ app.get('/api/member/dashboard', async (req, res) => {
     if (!user || !(user.whatsappVerifiedAt || user.createdAt)) return res.status(401).json({ success: false, message: 'Login member terverifikasi diperlukan.' })
     const stats = getMemberStats(db, user)
     const transactions = (db.history || []).filter(trx => trx.userId === user.id).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)).slice(0, 50).map(trx => ({ transactionId: trx.transactionId, invoiceNumber: trx.invoiceNumber || `INV-${trx.transactionId}`, createdAt: trx.createdAt, amount: Number(trx.amount) || 0, fee: Number(trx.fee) || 0, totalAmount: Number(trx.totalAmount) || Number(trx.amount) || 0, paymentMethod: trx.paymentMethod || '', status: trx.status || 'pending', gatewayReference: trx.gatewayReference || trx.transactionId, notes: trx.notes || '', paidAt: trx.paidAt || null, expiredAt: trx.expiredAt || null, invoiceAvailable: isPaid(trx.status) }))
-    res.json({ success: true, user: { id: user.id, name: user.name, phone: user.phone, createdAt: user.createdAt, showPublicIdentity: user.showPublicIdentity !== false, whatsappVerified: true }, stats, transactions })
+    res.json({ success: true, user: { id: user.id, name: user.name, phone: user.phone, createdAt: user.createdAt, profileImage: user.profileImage || null, showPublicIdentity: user.showPublicIdentity !== false, whatsappVerified: true }, stats, transactions })
 })
 
 app.post('/api/member/profile', async (req, res) => {
     const db = await loadDb()
-        if (!databaseAvailable(res)) return
+    if (!databaseAvailable(res)) return
     const user = getUserFromToken(req, db)
     if (!user || !(user.whatsappVerifiedAt || user.createdAt)) return res.status(401).json({ success: false, message: 'Login member terverifikasi diperlukan.' })
-    if (typeof req.body?.showPublicIdentity !== 'boolean') return res.status(400).json({ success: false, message: 'Pilihan privasi tidak valid.' })
-    user.showPublicIdentity = req.body.showPublicIdentity
+
+    const hasPrivacyUpdate = Object.prototype.hasOwnProperty.call(req.body || {}, 'showPublicIdentity')
+    const hasImageUpdate = Object.prototype.hasOwnProperty.call(req.body || {}, 'profileImage')
+    if (!hasPrivacyUpdate && !hasImageUpdate) return res.status(400).json({ success: false, message: 'Tidak ada perubahan profil.' })
+    if (hasPrivacyUpdate && typeof req.body.showPublicIdentity !== 'boolean') return res.status(400).json({ success: false, message: 'Pilihan privasi tidak valid.' })
+
+    if (hasImageUpdate) {
+        const profileImage = req.body.profileImage
+        if (profileImage === null || profileImage === '') {
+            delete user.profileImage
+        } else {
+            if (typeof profileImage !== 'string' || profileImage.length > 245000) return res.status(413).json({ success: false, message: 'Foto terlalu besar. Pilih foto yang lebih kecil.' })
+            const match = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/]+={0,2})$/.exec(profileImage)
+            if (!match) return res.status(400).json({ success: false, message: 'Format foto tidak valid. Gunakan JPG, PNG, atau WebP.' })
+            const bytes = Buffer.from(match[2], 'base64')
+            const signatureOk = match[1] === 'jpeg' ? bytes.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff]))
+                : match[1] === 'png' ? bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+                : bytes.length >= 12 && bytes.toString('ascii', 0, 4) === 'RIFF' && bytes.toString('ascii', 8, 12) === 'WEBP'
+            if (!bytes.length || bytes.length > 180 * 1024 || !signatureOk) return res.status(400).json({ success: false, message: 'Foto tidak valid atau melebihi batas 180 KB.' })
+            user.profileImage = profileImage
+        }
+    }
+
+    if (hasPrivacyUpdate) {
+        user.showPublicIdentity = req.body.showPublicIdentity
+        for (const trx of db.history || []) if (trx.userId === user.id) trx.publicName = user.showPublicIdentity ? (trx.name || user.name) : 'Anonim'
+    }
     user.updatedAt = new Date().toISOString()
-    for (const trx of db.history || []) if (trx.userId === user.id) trx.publicName = user.showPublicIdentity ? (trx.name || user.name) : 'Anonim'
-    if (!(await persistBeforeSuccess(db, res, 'Pengaturan privasi belum tersimpan. Periksa JSONBin.'))) return
-    res.json({ success: true, showPublicIdentity: user.showPublicIdentity })
+    if (!(await persistBeforeSuccess(db, res, 'Pengaturan profil belum tersimpan. Periksa JSONBin.'))) return
+    res.json({ success: true, showPublicIdentity: user.showPublicIdentity !== false, profileImage: user.profileImage || null })
 })
 
 app.get('/api/member/invoice/:id', async (req, res) => {
@@ -639,6 +663,16 @@ app.get('/api/public-stats', async (req, res) => {
         const successList = db.history.filter(h => isPaid(h.status))
         const currentRaised = successList.reduce((acc, cur) => acc + Math.max(0, Number(cur.amount) || 0), 0)
 
+        const usersById = new Map((db.users || []).map(user => [user.id, user]))
+        const getPublicIdentity = historyItem => {
+            const user = historyItem.userId ? usersById.get(historyItem.userId) : null
+            const visible = Boolean(user && user.showPublicIdentity !== false)
+            return {
+                name: visible ? (historyItem.publicName && historyItem.publicName !== 'Anonim' ? historyItem.publicName : (user.name || historyItem.name || 'Donatur')) : 'Anonim',
+                profileImage: visible ? (user.profileImage || null) : null,
+                anonymous: !visible
+            }
+        }
         const now = Date.now()
         const recent = successList
             .filter(h => {
@@ -648,34 +682,30 @@ app.get('/api/public-stats', async (req, res) => {
             .sort((a, b) => new Date(b.paidAt || b.createdAt || 0).getTime() - new Date(a.paidAt || a.createdAt || 0).getTime())
             .slice(0, 10)
             .map(h => ({
-                name: !h.userId ? 'Anonim' : (h.publicName || h.name || 'Anonim'),
+                name: getPublicIdentity(h).name,
                 amount: h.amount,
                 notes: h.notes,
                 emoji: h.emoji,
                 paidAt: h.paidAt || h.createdAt
             }))
 
-        const mapTop = {}
+        const mapTop = new Map()
         successList.forEach(h => {
-            const publicName = !h.userId ? 'Anonim' : (h.publicName || h.name || 'Anonim')
-            const key = publicName.toLowerCase()
-            if (!mapTop[key]) {
-                mapTop[key] = { name: publicName, total: 0, count: 0 }
-            }
-            mapTop[key].total += Number(h.amount)
-            mapTop[key].count += 1
+            const identity = getPublicIdentity(h)
+            const key = identity.anonymous ? 'anonymous' : `user:${h.userId}`
+            if (!mapTop.has(key)) mapTop.set(key, { ...identity, total: 0, count: 0 })
+            const entry = mapTop.get(key)
+            entry.total += Number(h.amount) || 0
+            entry.count += 1
         })
-
-        const leaderboard = Object.values(mapTop)
-            .sort((a, b) => b.total - a.total)
-            
+        const leaderboard = [...mapTop.values()].sort((a, b) => b.total - a.total).slice(0, 20)
 
         const transactions = [...db.history]
             .sort((a, b) => new Date(b.createdAt || b.paidAt || 0).getTime() - new Date(a.createdAt || a.paidAt || 0).getTime())
             .slice(0, 15)
             .map(h => ({
                 transactionId: h.transactionId || h.id || '',
-                name: !h.userId ? 'Anonim' : (h.publicName || h.name || 'Anonim'),
+                name: getPublicIdentity(h).name,
                 amount: Number(h.amount) || 0,
                 notes: h.notes || '',
                 emoji: h.emoji || 'support',
