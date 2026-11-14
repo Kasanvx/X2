@@ -52,7 +52,10 @@
             font-family: inherit;
             cursor: pointer;
             text-transform: uppercase;
+            transition: transform .08s ease, box-shadow .08s ease;
         }
+        .neo-btn:hover { transform: translate(2px,2px); box-shadow: 2px 2px 0px #000; }
+        .neo-btn:active { transform: translate(4px,4px); box-shadow: 0 0 0px #000; }
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -92,6 +95,21 @@
         .bg-cancel { background: #ff5757; color: #fff; }
         .hidden { display: none !important; }
     .icon-btn{display:inline-flex;align-items:center;gap:8px}.icon-btn svg,.lucide{width:18px;height:18px;vertical-align:middle}.reply-box{min-width:230px}.reply-box textarea{width:100%;padding:8px;border:2px solid #111;font:inherit;margin:6px 0}.reply-list{font-size:12px;margin-top:6px;white-space:normal}.notice{padding:10px;background:#dbeafe;border:2px solid #111;margin:12px 0}
+
+        /* ===== FIX LIVE CHAT: bubble terlihat jelas di atas box putih ===== */
+        .chat-card { border:3px solid #111; padding:14px; background:#fff; box-shadow:5px 5px 0 #000; }
+        .chat-head { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center; padding-bottom:8px; border-bottom:2px dashed #111; }
+        .chat-head strong { font-size:14px; }
+        .chat-head small { font-size:11px; font-weight:700; background:#ffde59; border:2px solid #111; padding:2px 6px; }
+        .chat-scroll { max-height:260px; overflow:auto; margin:12px 0; display:grid; gap:10px; padding-right:4px; }
+        .chat-bubble { padding:10px 12px; border:2px solid #111; font-size:13px; line-height:1.45; }
+        .chat-bubble.user { background:#f2f2f2; box-shadow:3px 3px 0 #000; }
+        .chat-bubble.admin { background:#bfe3ff; box-shadow:-3px 3px 0 #000; }
+        .chat-bubble b { display:block; margin-bottom:2px; font-size:12px; text-transform:uppercase; }
+        .chat-bubble .time { font-size:10px; opacity:.75; margin-top:4px; }
+        .chat-reply-row { display:flex; gap:8px; flex-wrap:wrap; }
+        .chat-reply-row textarea { flex:1; min-width:220px; padding:10px; border:2px solid #111; font:inherit; background:#fff; }
+        .chat-empty { padding:12px; background:#fff3cd; border:2px solid #111; font-weight:700; }
     </style>
     <link rel="stylesheet" href="/theme.css">
     <link rel="stylesheet" href="/premium.css">
@@ -183,7 +201,7 @@
             <div class="neo-box" id="adminChats">
                 <h3 style="font-weight:900;margin-bottom:12px;text-transform:uppercase">Live Chat Pengguna Terdaftar</h3>
                 <p>Pesan dari akun WhatsApp terverifikasi akan muncul di sini. Pilih percakapan untuk membalas.</p>
-                <div id="registeredChats" style="display:grid;gap:12px">Memuat percakapan...</div>
+                <div id="registeredChats" style="display:grid;gap:14px">Memuat percakapan...</div>
             </div>
             </main>
         </div>
@@ -311,12 +329,28 @@
             try {
                 const res = await fetch('/api/admin/chats', { headers: { Authorization: `Bearer ${savedPassword}` } })
                 const json = await res.json()
-                if (!json.success) { container.textContent = json.message || 'Chat tidak dapat dimuat.'; return }
+                if (!json.success) { container.innerHTML = '<div class="chat-empty">' + esc(json.message || 'Chat tidak dapat dimuat.') + '</div>'; return }
                 const groups = {}
                 ;(json.messages || []).forEach(item => { (groups[item.userId] ||= []).push(item) })
                 const ids = Object.keys(groups).sort((a,b) => new Date(groups[b].at(-1).createdAt) - new Date(groups[a].at(-1).createdAt))
-                container.innerHTML = ids.length ? ids.map(id => { const messages = groups[id]; const last = messages[messages.length-1]; return `<section style="border:3px solid #111;padding:12px;background:#fff"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><strong>${esc(last.name || 'Pengguna')} · ${esc(last.phone || '')}</strong><small>${new Date(last.createdAt).toLocaleString('id-ID')}</small></div><div style="max-height:260px;overflow:auto;margin:10px 0;display:grid;gap:8px">${messages.map(m => `<div style="padding:9px;border:2px solid #111;background:${m.sender === 'admin' ? '#dff7ff' : '#f2f2f2'}"><b>${m.sender === 'admin' ? 'Admin' : esc(m.name || 'Pengguna')}:</b> ${esc(m.message)}<div style="font-size:11px;margin-top:4px">${new Date(m.createdAt).toLocaleString('id-ID')}</div></div>`).join('')}</div><div style="display:flex;gap:8px;flex-wrap:wrap"><textarea id="chat-reply-${id}" rows="2" placeholder="Tulis balasan..." style="flex:1;min-width:220px;padding:8px;border:2px solid #111;font:inherit"></textarea><button class="neo-btn" onclick="replyRegisteredChat('${id}')">KIRIM BALASAN</button></div></section>` }).join('') : '<div class="notice">Belum ada pesan live chat dari pengguna terdaftar.</div>'
-            } catch (e) { container.textContent = 'Gagal memuat live chat.' }
+                container.innerHTML = ids.length ? ids.map(id => {
+                    const messages = groups[id]
+                    const last = messages[messages.length-1]
+                    return `<section class="chat-card">
+                        <div class="chat-head">
+                            <strong>${esc(last.name || 'Pengguna')} · ${esc(last.phone || '')}</strong>
+                            <small>${new Date(last.createdAt).toLocaleString('id-ID')}</small>
+                        </div>
+                        <div class="chat-scroll">
+                            ${messages.map(m => `<div class="chat-bubble ${m.sender === 'admin' ? 'admin' : 'user'}"><b>${m.sender === 'admin' ? 'Admin' : esc(m.name || 'Pengguna')}</b>${esc(m.message)}<div class="time">${new Date(m.createdAt).toLocaleString('id-ID')}</div></div>`).join('')}
+                        </div>
+                        <div class="chat-reply-row">
+                            <textarea id="chat-reply-${id}" rows="2" placeholder="Tulis balasan..."></textarea>
+                            <button class="neo-btn" onclick="replyRegisteredChat('${id}')">KIRIM BALASAN</button>
+                        </div>
+                    </section>`
+                }).join('') : '<div class="chat-empty">Belum ada pesan live chat dari pengguna terdaftar.</div>'
+            } catch (e) { container.innerHTML = '<div class="chat-empty">Gagal memuat live chat.</div>' }
         }
 
         const replyRegisteredChat = async userId => {
