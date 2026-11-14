@@ -1,0 +1,121 @@
+/* Kaxel Donate — unified Neo-Brutalism UI polish
+   Presentation only: no application behavior, API, storage, or payment logic. */
+:root{--ui-paper:#f5f0e6;--ui-ink:#171717;--ui-card:#fffdf7;--ui-cobalt:#244fe5;--ui-lime:#c7f36b;--ui-coral:#ff805d;--ui-border:2px solid var(--ui-ink);--ui-shadow:5px 5px 0 var(--ui-ink)}
+*{box-sizing:border-box}
+html{scroll-padding-top:88px}
+body{background:var(--bg,var(--ui-paper))!important;color:var(--text,var(--ui-ink))!important}
+button,a,input,select,textarea{-webkit-tap-highlight-color:transparent}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--primary)!important;outline-offset:3px}
+/* Public / member app */
+body[data-page="public"]{padding-bottom:max(28px,env(safe-area-inset-bottom))!important}
+.site-topbar{min-height:68px!important;padding:12px max(18px,calc((100vw - 1240px)/2))!important;background:var(--surface)!important;border-bottom:var(--ui-border)!important;box-shadow:3px 3px 0 var(--ui-ink)!important}
+.site-brand{font-size:15px!important;font-weight:900!important;letter-spacing:-.04em!important}
+.brand-mark{background:var(--primary)!important;border:2px solid var(--ui-ink)!important;border-radius:8px!important;box-shadow:3px 3px 0 var(--ui-ink)!important}
+.topbar-status{border:1.5px solid var(--ui-ink)!important;border-radius:5px!important;font-weight:900!important}
+.page-shortcuts{justify-content:flex-start!important;flex-wrap:wrap!important;margin-top:16px!important}
+.page-shortcut{border:1.5px solid var(--ui-ink)!important;border-radius:5px!important;box-shadow:2px 2px 0 var(--ui-ink)!important;background:var(--surface)!important;color:var(--text)!important}
+.marquee{border:1.5px solid var(--ui-ink)!important;border-radius:5px!important;box-shadow:2px 2px 0 var(--ui-ink)!important;background:var(--accent-soft)!important;color:var(--text)!important}
+.container{width:min(1240px,calc(100% - 40px))!important;margin:22px auto 0!important}
+.owner-intro{border:2px solid var(--ui-ink)!important;border-radius:8px!important;background:var(--primary)!important;box-shadow:var(--ui-shadow)!important;padding:clamp(25px,4vw,42px)!important}
+.owner-intro h2{max-width:760px!important;font-size:clamp(28px,4.5vw,48px)!important;line-height:1.04!important;letter-spacing:-.055em!important}
+.owner-intro p{max-width:680px!important;font-size:14px!important}
+.dashboard-grid{grid-template-columns:minmax(245px,.36fr) minmax(0,1fr)!important;gap:20px!important}
+.goal-box,.neo-card,.account-gate-card,.account-hero-card,.account-section-card,.member-level-box,.member-stat-card,.badge-item-card,.feed-item,.transaction-row,.notice-panel,.comment-panel,.payment-instructions,.info-list,.qr-frame,.payment-option,.preset-btn,.emoji-btn{border:2px solid var(--ui-ink)!important;border-radius:7px!important;box-shadow:3px 3px 0 var(--ui-ink)!important}
+.goal-box,.neo-card,.account-gate-card,.account-hero-card,.account-section-card{background:var(--surface)!important}
+.goal-box{top:88px!important;padding:20px!important}
+.neo-card{padding:clamp(15px,2vw,24px)!important;gap:16px!important}
+.card-header-flex{border-bottom:2px solid var(--ui-ink)!important;padding-bottom:13px!important}
+.tabs{gap:8px!important}
+.tab-btn{border:1.5px solid var(--ui-ink)!important;border-radius:5px!important;box-shadow:2px 2px 0 var(--ui-ink)!important;background:var(--surface-2)!important;color:var(--text)!important;font-weight:850!important}
+.tab-btn.active{background:var(--accent)!important;color:var(--ui-ink)!important;box-shadow:3px 3px 0 var(--ui-ink)!important}
+.neo-btn,.neo-btn.blue,.neo-btn.mint,.neo-btn.red,.actions button,.wrap button,.admin-shell button{border:2px solid var(--ui-ink)!important;border-radius:5px!important;box-shadow:3px 3px 0 var(--ui-ink)!important;font-weight:900!important;min-height:44px!important}
+.neo-btn,.actions button,.wrap button,.admin-shell button{background:var(--accent)!important;color:var(--ui-ink)!important}
+.neo-btn.blue,.primary-btn,button.primary{background:var(--primary)!important;color:#fff!important}
+.neo-btn.ghost,.neo-btn.blue.ghost,.link{background:var(--surface)!important;color:var(--text)!important}
+input,select,textarea,.neo-input,.wa-select{border:2px solid var(--ui-ink)!important;border-radius:5px!important;box-shadow:2px 2px 0 var(--ui-ink)!important;min-height:44px!important;background:var(--surface)!important;color:var(--text)!important}
+.payment-option{min-height:66px!important}
+.payment-option.selected,.preset-btn:focus,.preset-btn:active,.emoji-btn.selected{background:var(--accent)!important;color:var(--ui-ink)!important}
+.qr-frame{padding:14px!important;background:#fff!important}
+/* Mobile checkout wizard */
+.checkout-steps{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 18px;padding:0}
+.checkout-step{display:flex;align-items:center;justify-content:center;gap:7px;min-width:0;padding:9px 5px;border:1.5px solid var(--ui-ink);border-radius:5px;background:var(--surface-2);font-size:11px;font-weight:850;color:var(--muted)}
+.checkout-step .step-dot{display:grid;place-items:center;width:23px;height:23px;flex:0 0 23px;border:1.5px solid var(--ui-ink);border-radius:50%;background:var(--surface);color:var(--text);font-size:11px}
+.checkout-step.active{background:var(--accent);color:var(--ui-ink);box-shadow:2px 2px 0 var(--ui-ink)}
+.checkout-step.done{background:var(--success-soft);color:var(--text)}
+.checkout-step-panel[hidden]{display:none!important}
+.checkout-panel-heading{margin:0 0 16px}
+.checkout-eyebrow{font-size:10px;font-weight:900;letter-spacing:.12em;color:var(--primary)}
+.checkout-panel-title{margin:5px 0;font-size:clamp(20px,5vw,26px);font-weight:900;letter-spacing:-.04em}
+.checkout-panel-desc{margin:0;color:var(--muted);font-size:12px;line-height:1.55}
+.checkout-step-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+.checkout-step-actions>*{flex:1 1 140px}
+/* Admin workspace */
+.admin-shell{width:min(1440px,calc(100% - 40px))!important;padding:24px 0 50px!important}
+.admin-shell #dashboardBox{display:grid;grid-template-columns:210px minmax(0,1fr);gap:18px;align-items:start}
+.admin-header{grid-column:1/-1!important;border:2px solid var(--ui-ink)!important;border-radius:7px!important;box-shadow:var(--ui-shadow)!important;background:var(--surface)!important;padding:16px 20px!important}
+.admin-sidebar{position:sticky!important;top:16px;grid-column:1!important;grid-row:2!important;display:grid!important;gap:7px!important;padding:12px!important;border:2px solid var(--ui-ink)!important;border-radius:7px!important;box-shadow:3px 3px 0 var(--ui-ink)!important;background:var(--surface)!important}
+.admin-sidebar a{border-radius:4px!important;font-size:12px!important;padding:11px!important;color:var(--text)!important}
+.admin-sidebar a.active,.admin-sidebar a:hover{background:var(--accent)!important;color:var(--ui-ink)!important}
+.admin-main{grid-column:2!important;min-width:0;display:grid;gap:16px}
+.admin-shell .neo-box,.admin-shell .stat-card{border:2px solid var(--ui-ink)!important;border-radius:7px!important;box-shadow:3px 3px 0 var(--ui-ink)!important;background:var(--surface)!important;color:var(--text)!important}
+.admin-shell .stats-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+.admin-shell .table-wrap{max-width:100%;overflow-x:auto;border:1.5px solid var(--ui-ink);border-radius:5px}
+.admin-shell table{min-width:760px;border:0!important;border-radius:0!important}
+.admin-shell th{background:var(--accent)!important;color:var(--ui-ink)!important}
+.admin-shell th,.admin-shell td{border-bottom:1px solid var(--line)!important}
+/* Health and service status */
+body[data-page="health"],body[data-page="status"]{padding:0 0 30px!important}
+.wrap{width:min(1080px,calc(100% - 36px))!important;margin:0 auto!important;padding:28px 0 48px!important}
+.wrap .top{margin-bottom:20px}
+.wrap .hero{border:2px solid var(--ui-ink)!important;border-radius:8px!important;background:var(--surface)!important;box-shadow:var(--ui-shadow)!important;padding:clamp(22px,4vw,40px)!important}
+.wrap .hero h1,.wrap h1{color:var(--text)!important;font-size:clamp(30px,6vw,54px)!important;line-height:1.04!important;letter-spacing:-.055em!important}
+.wrap .hero p,.wrap .sub,.wrap .muted{color:var(--muted)!important}
+.wrap .grid{gap:12px!important}
+.wrap .metric,.wrap .panel,.wrap .check,.wrap .item{min-width:0;border:1.5px solid var(--ui-ink)!important;border-radius:6px!important;background:var(--surface)!important;box-shadow:3px 3px 0 var(--ui-ink)!important;color:var(--text)!important;padding:16px!important}
+.wrap .metric strong{font-size:clamp(21px,3vw,30px)!important}
+.wrap .check p{overflow-wrap:anywhere}
+.wrap .status-label,.wrap .pill{border:1.5px solid var(--ui-ink)!important;border-radius:4px!important}
+.wrap .history{min-width:520px}
+.wrap .table-wrap{overflow-x:auto;border:1.5px solid var(--ui-ink);border-radius:5px;background:var(--surface)}
+.wrap .foot,.wrap .footer{color:var(--muted)!important}
+/* Payment result */
+body[data-page="success"]{min-height:100svh!important;display:grid!important;place-items:center!important;padding:24px 16px max(24px,env(safe-area-inset-bottom))!important;background:var(--bg)!important}
+body[data-page="success"] .card{width:min(100%,580px)!important;padding:clamp(22px,5vw,38px)!important;border:2px solid var(--ui-ink)!important;border-radius:8px!important;background:var(--surface)!important;color:var(--text)!important;box-shadow:var(--ui-shadow)!important}
+body[data-page="success"] .tag{display:inline-block;border:1.5px solid var(--ui-ink)!important;border-radius:4px!important;background:var(--accent)!important;color:var(--ui-ink)!important;font-weight:900!important}
+body[data-page="success"] .mark{width:58px!important;height:58px!important;border:2px solid var(--ui-ink)!important;border-radius:7px!important;background:var(--primary-soft)!important;color:var(--text)!important;box-shadow:3px 3px 0 var(--ui-ink)!important}
+body[data-page="success"] h1{color:var(--text)!important;font-size:clamp(27px,6vw,40px)!important;line-height:1.08!important}
+body[data-page="success"] p,body[data-page="success"] small{color:var(--muted)!important}
+body[data-page="success"] .note{border:1.5px solid var(--ui-ink)!important;border-radius:5px!important;background:var(--surface-2)!important;color:var(--text)!important}
+body[data-page="success"] .actions a{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:11px 15px;border:2px solid var(--ui-ink)!important;border-radius:5px!important;background:var(--accent)!important;color:var(--ui-ink)!important;text-decoration:none;font-size:12px;font-weight:900;box-shadow:3px 3px 0 var(--ui-ink)!important}
+body[data-page="success"] .actions a.secondary{background:var(--surface)!important;color:var(--text)!important}
+/* Dark mode keeps contrast while retaining the same visual language */
+body[data-theme="dark"]{--ui-ink:#fff9ec}
+body[data-theme="dark"] .owner-intro{background:#263f9c!important}
+body[data-theme="dark"] .neo-btn,body[data-theme="dark"] .actions button,body[data-theme="dark"] .wrap button,body[data-theme="dark"] .admin-shell button{color:#171717!important}
+body[data-theme="dark"] .neo-btn.blue{color:#fff!important}
+body[data-theme="dark"] .admin-sidebar a.active{color:#171717!important}
+@media(max-width:980px){.dashboard-grid{grid-template-columns:1fr!important}.goal-box{position:static!important}.admin-shell #dashboardBox{grid-template-columns:180px minmax(0,1fr)}}
+@media(max-width:700px){
+ .site-topbar{min-height:60px!important;padding:9px 14px!important}.site-brand{font-size:13px!important}
+ .container,.page-shortcuts,.marquee{width:calc(100% - 28px)!important}.container{margin-top:14px!important}
+ .owner-intro{padding:23px!important}.dashboard-grid{grid-template-columns:minmax(0,1fr)!important;gap:14px!important}
+ .neo-card{grid-template-columns:minmax(0,1fr)!important;padding:14px!important}.card-header-flex{grid-column:1!important}
+ .tabs{grid-column:1!important;grid-row:auto!important;display:flex!important;overflow-x:auto!important;gap:7px!important;padding:0 2px 12px!important;border:0!important;border-bottom:1px solid var(--line)!important;margin-bottom:8px!important}
+ .tab-btn{flex:0 0 auto!important;white-space:nowrap!important;min-height:40px!important;padding:8px 11px!important}
+ #alertBox,#tab-donate,#tab-leaderboard,#tab-feed,#tab-account,#tab-chat{grid-column:1!important}
+ .member-stats-grid,.member-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .admin-shell{width:calc(100% - 24px)!important;padding-top:14px!important}
+ .admin-shell #dashboardBox{grid-template-columns:minmax(0,1fr)!important}
+ .admin-header,.admin-sidebar,.admin-main{grid-column:1!important;grid-row:auto!important}
+ .admin-sidebar{position:static!important;display:flex!important;overflow-x:auto!important;white-space:nowrap}
+ .admin-sidebar .sidebar-label{display:none!important}.admin-sidebar a{flex:0 0 auto}
+ .admin-shell .stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .admin-shell #goalForm{grid-template-columns:1fr!important}
+ .wrap{width:calc(100% - 28px)!important;padding-top:18px!important}
+ .wrap .grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .wrap .checks{grid-template-columns:1fr!important}
+ body[data-page="success"] .actions{display:grid!important;grid-template-columns:1fr!important}
+ .checkout-step{font-size:10px}.checkout-step-actions{display:grid;grid-template-columns:1fr 1fr}
+}
+@media(max-width:390px){.wrap .grid{grid-template-columns:1fr!important}.admin-shell .stats-grid{grid-template-columns:1fr!important}.member-stats-grid,.member-stat-grid{grid-template-columns:1fr 1fr!important}.checkout-step{gap:4px;padding:8px 3px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
