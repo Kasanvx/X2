@@ -59,6 +59,19 @@
             .payment-option:disabled { opacity: .55; cursor: not-allowed; filter: grayscale(.25); }
         .payment-option { min-height: 62px; }
         }
+        .donate-account-session { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin:0 0 14px; padding:13px 14px; border:2px solid var(--line); border-radius:14px; background:#e9f8ef; box-shadow:4px 4px 0 var(--shadow); }
+        .donate-account-identity { display:flex; align-items:center; gap:10px; min-width:0; }
+        .donate-account-avatar { width:38px; height:38px; flex:0 0 38px; display:grid; place-items:center; border:2px solid var(--line); border-radius:11px; background:#c7f36b; }
+        .donate-account-copy { display:grid; min-width:0; line-height:1.25; }
+        .donate-account-copy strong { font-size:13px; font-weight:900; overflow-wrap:anywhere; }
+        .donate-account-copy small { color:#3f5144; font-size:11px; overflow-wrap:anywhere; }
+        .donate-account-status { padding:4px 8px; border:1.5px solid var(--line); border-radius:6px; background:#c7f36b; font-size:9px; font-weight:900; letter-spacing:.08em; }
+        .donate-logout-btn { display:inline-flex; align-items:center; justify-content:center; gap:7px; min-height:38px; padding:8px 12px; border:2px solid var(--line); border-radius:9px; background:#fff; color:#111; box-shadow:2px 2px 0 var(--shadow); font:800 11px 'Space Grotesk',sans-serif; cursor:pointer; }
+        .donate-logout-btn:active { transform:translate(2px,2px); box-shadow:none; }
+        .whatsapp-buyer-hint { display:block; margin:7px 0 14px; color:#555; font-size:11px; line-height:1.5; font-weight:600; }
+        .wa-input:disabled, .wa-select:disabled { opacity:.8; color:#333; background:#eee; }
+        @media(max-width:480px) { .donate-account-session { align-items:flex-start; } .donate-logout-btn { width:100%; } }
+
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
         }
@@ -1715,8 +1728,7 @@
         }
     </style>
     <link rel="stylesheet" href="/theme.css">
-    <link rel="stylesheet" href="/ui-polish.css">
-
+    <link rel="stylesheet" href="/premium.css">
 </head>
 <body data-page="public">
     <header class="site-topbar">
@@ -1829,13 +1841,22 @@
                     <p id="accountStatus" style="margin:12px 0 0; font-size:12px; font-weight:700; color:#047857;"></p>
                 </div>
 
+                <div id="donateAccountSession" class="donate-account-session hidden" aria-live="polite">
+                    <div class="donate-account-identity">
+                        <span class="donate-account-avatar"><i data-lucide="user-round-check"></i></span>
+                        <span class="donate-account-copy"><strong id="donateAccountName">Akun terhubung</strong><small id="donateAccountPhone">WhatsApp terverifikasi</small></span>
+                        <span class="donate-account-status">LOGIN</span>
+                    </div>
+                    <button type="button" class="donate-logout-btn" onclick="logoutMember()"><i data-lucide="log-out"></i> Keluar akun</button>
+                </div>
+
                 <form id="donateForm" class="hidden">
                     <label class="label"><span>Nama publik</span></label>
                     <input type="text" id="name" value="Anonim" placeholder="Anonim" maxlength="60" class="neo-input" readonly>
 
                     <label class="label">
                         <span>Nomor WhatsApp</span>
-                        <span style="font-size:10px; background:#fff; padding:2px 7px; border:1.5px solid var(--line); border-radius:5px;">OPSIONAL (PRIVASI AMAN)</span>
+                        <span id="whatsappFieldHint" style="font-size:10px; background:#fff; padding:2px 7px; border:1.5px solid var(--line); border-radius:5px;">UNTUK BUKTI TRANSAKSI</span>
                     </label>
                     <div class="wa-group">
                         <select id="countryCode" class="wa-select">
@@ -1864,7 +1885,7 @@
                             <option value="+7">RU +7 (RU)</option>
                             <option value="+55">BR +55 (BR)</option>
                         </select>
-                        <input type="tel" id="waNumber" placeholder="8123456789" class="neo-input wa-input">
+                        <input type="tel" id="waNumber" placeholder="8123456789" class="neo-input wa-input" inputmode="tel" autocomplete="tel-national" required><small id="whatsappBuyerHint" class="whatsapp-buyer-hint">Nomor ini dipakai APIQris untuk mengirim notifikasi pembayaran berhasil atau kedaluwarsa. Wapito hanya untuk OTP.</small>
                     </div>
 
                     <label class="label"><span>Metode Pembayaran</span><span style="font-size:10.5px">PILIH SATU</span></label>
@@ -2121,7 +2142,8 @@
             document.getElementById('name').value = 'Anonim'
             document.getElementById('name').readOnly = true
             document.getElementById('waNumber').value = ''
-            document.getElementById('accountStatus').textContent = 'Mode anonim aktif. Nama publik selalu Anonim dan nomor WhatsApp tidak diperlukan.'
+            document.getElementById('accountStatus').textContent = 'Mode anonim aktif. Isi nomor WhatsApp agar APIQris dapat mengirim bukti transaksi.'
+            syncDonateAccountSession()
             updateFeeNotice()
         }
 
@@ -2182,6 +2204,7 @@
                 document.getElementById('name').readOnly = true
                 document.getElementById('waNumber').value = ''
                 document.getElementById('accountStatus').textContent = `Login sebagai ${authUser.name} (${authUser.phone}). Nomor WhatsApp terverifikasi.`
+                syncDonateAccountSession()
                 loadMemberDashboard()
                 updateFeeNotice()
                 showAlert('Pendaftaran berhasil!')
@@ -2206,12 +2229,39 @@
                 document.getElementById('name').value = authUser.name
                 document.getElementById('name').readOnly = true
                 document.getElementById('accountStatus').textContent = `Login sebagai ${authUser.name} (${authUser.phone}). Nomor WhatsApp terverifikasi.`
+                syncDonateAccountSession()
                 loadMemberDashboard()
                 updateFeeNotice()
             } catch (e) {}
         }
 
         let publicFeeConfig = { enabled: false, memberPercent: 0.3, anonymousPercent: 0.7 }
+        const syncDonateAccountSession = () => {
+            const session = document.getElementById('donateAccountSession')
+            const phoneInput = document.getElementById('waNumber')
+            const countrySelect = document.getElementById('countryCode')
+            const hint = document.getElementById('whatsappBuyerHint')
+            if (!session || !phoneInput || !countrySelect) return
+            if (authUser) {
+                session.classList.remove('hidden')
+                document.getElementById('donateAccountName').textContent = authUser.name || 'Member Kaxel'
+                document.getElementById('donateAccountPhone').textContent = `+${authUser.phone} · WhatsApp terverifikasi`
+                const prefix = ['673','966','971','852','886','60','65','63','66','84','81','82','86','91','90','61','44','49','33','31','55','62','1','7'].sort((a,b)=>b.length-a.length).find(code => authUser.phone.startsWith(code)) || '62'
+                phoneInput.value = authUser.phone.slice(prefix.length)
+                phoneInput.readOnly = true
+                phoneInput.disabled = true
+                countrySelect.disabled = true
+                countrySelect.value = `+${prefix}`
+                if (hint) hint.textContent = 'Nomor akun terverifikasi akan menerima bukti transaksi dari APIQris.'
+            } else {
+                session.classList.add('hidden')
+                phoneInput.disabled = false
+                phoneInput.readOnly = false
+                countrySelect.disabled = false
+                if (hint) hint.textContent = 'Nomor ini wajib diisi agar APIQris dapat mengirim bukti pembayaran berhasil atau kedaluwarsa.'
+            }
+        }
+
         const updateFeeNotice = () => {
             const el = document.getElementById('feeNotice')
             if (!el) return
@@ -2707,6 +2757,7 @@
             const payload = {
                 name: authUser ? authUser.name : (document.getElementById('name').value.trim() || 'Anonim'),
                 whatsapp: authUser ? authUser.phone : '',
+                whatsappBuyer: authUser ? authUser.phone : fullWhatsapp,
                 amount: document.getElementById('amount').value,
                 notes: document.getElementById('notes').value,
                 emoji: selectedEmoji,
@@ -3058,6 +3109,7 @@
                 document.getElementById('name').value = 'Anonim'
                 document.getElementById('name').readOnly = true
             }
+            syncDonateAccountSession()
             updateTierBadge(0)
             const btn = document.getElementById('submitBtn')
             btn.disabled = false

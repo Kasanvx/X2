@@ -9,7 +9,7 @@
       const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('kaxel_theme_preference_v1')
       if (saved === 'dark' || saved === 'light') return saved
     } catch { /* Storage may be disabled; default to light. */ }
-    return 'dark'
+    return 'light'
   }
 
   const applyTheme = (theme) => {
