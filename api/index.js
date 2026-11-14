@@ -124,11 +124,6 @@ const databaseAvailable = (res) => {
 const getFee = (amount, percent = ANONYMOUS_FEE_PERCENT) => Math.round(Number(amount) * percent / 100)
 const isPaid = status => ['success', 'sukses', 'paid', 'completed'].includes(String(status || '').toLowerCase())
 const isRefunded = status => ['refund', 'refunded', 'chargeback', 'charge_back', 'charge-back'].includes(String(status || '').toLowerCase())
-const isVerifiedMember = (db, trx) => {
-    if (!trx?.userId || !trx?.registered) return null
-    const user = (db.users || []).find(item => item.id === trx.userId && item.phone === trx.whatsapp && (item.whatsappVerifiedAt || item.createdAt))
-    return user || null
-}
 const getMemberStats = (db, user) => {
     const paid = (db.history || []).filter(trx => trx.userId === user.id && isPaid(trx.status))
     const total = paid.reduce((sum, trx) => sum + Math.max(0, Number(trx.amount) || 0), 0)
@@ -170,46 +165,6 @@ const sendWhatsApp = async (to, body) => {
 }
 const getUserFromToken = (req, db) => { const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, ''); return token ? (db.users || []).find(user => user.token === token) : null }
 const cleanPhone = value => String(value || '').replace(/\D/g, '')
-const deliverMemberWhatsAppOnce = async (db, trx, eventKey, body) => {
-    const user = isVerifiedMember(db, trx)
-    if (!user || !WAPITO_API_KEY) return false
-    db.notificationLogs = db.notificationLogs || []
-    let log = db.notificationLogs.find(item => item.eventKey === eventKey)
-    if (log?.status === 'sent' || (log?.status === 'pending' && Date.now() - Number(log.updatedAtMs || 0) < 30000) || (log?.status === 'failed' && (Number(log.attempts || 0) >= 5 || Date.now() - Number(log.updatedAtMs || 0) < 60000))) return false
-    if (!log) { log = { id: crypto.randomUUID(), eventKey, transactionId: trx.transactionId, userId: user.id, type: eventKey.startsWith('invoice:') ? 'invoice' : 'status', to: user.phone, body, status: 'pending', attempts: 0, createdAt: new Date().toISOString(), updatedAtMs: Date.now() }; db.notificationLogs.push(log) }
-    log.status = 'pending'; log.attempts = Number(log.attempts || 0) + 1; log.updatedAtMs = Date.now(); log.lastError = ''
-    await saveDb(db)
-    try { await sendWhatsApp(user.phone, body); log.status = 'sent'; log.sentAt = new Date().toISOString(); log.lastError = '' }
-    catch (error) { log.status = 'failed'; log.lastError = String(error?.message || 'Gateway gagal').slice(0, 200) }
-    log.updatedAtMs = Date.now()
-    await saveDb(db)
-    return log.status === 'sent'
-}
-const retryFailedMemberWhatsApp = async (db, transactionId) => {
-    const logs = (db.notificationLogs || []).filter(item => item.transactionId === transactionId && item.status === 'failed' && Number(item.attempts || 0) < 5 && Date.now() - Number(item.updatedAtMs || 0) >= 60 * 1000)
-    for (const log of logs) {
-        const trx = (db.history || []).find(item => item.transactionId === transactionId)
-        const user = trx && isVerifiedMember(db, trx)
-        if (!user || user.phone !== log.to) continue
-        await deliverMemberWhatsAppOnce(db, trx, log.eventKey, log.body)
-    }
-}
-const processExpiredStatusMessages = async db => {
-    let changed = false
-    for (const trx of (db.history || [])) {
-        const status = trx.pendingWhatsAppStatus
-        if (!status) continue
-        if (isVerifiedMember(db, trx)) {
-            const body = `KAXEL DONATE - Status transaksi diperbarui\nInvoice: ${trx.invoiceNumber || `INV-${trx.transactionId}`}\nID transaksi: ${trx.transactionId}\nStatus: ${status}\nNominal donasi: Rp${Number(trx.amount || 0).toLocaleString('id-ID')}\nTransaksi belum berhasil dibayar dalam batas waktu.`
-            await deliverMemberWhatsAppOnce(db, trx, `status:${trx.transactionId}:${String(status).toLowerCase()}`, body)
-        }
-        delete trx.pendingWhatsAppStatus
-        changed = true
-    }
-    if (changed) await saveDb(db)
-}
-
-
 const normalizeExpiredTransactions = (db, exemptTransactionId = '') => {
     let changed = false
     const now = Date.now()
@@ -226,7 +181,6 @@ const normalizeExpiredTransactions = (db, exemptTransactionId = '') => {
             db.notifications = db.notifications || []
             const eventKey = `expired:${trx.transactionId}`
             if (!db.notifications.some(n => n.eventKey === eventKey)) db.notifications.unshift({ id: `NTF-${now}`, eventKey, transactionId: trx.transactionId, accessKey: trx.accessKey, type: 'payment', title: 'Transaksi dibatalkan', message: 'Batas pembayaran 20 menit telah habis. Transaksi otomatis dibatalkan.', createdAt: new Date(now).toISOString(), read: false })
-            trx.pendingWhatsAppStatus = 'cancelled'
             changed = true
         }
     }
@@ -242,7 +196,7 @@ app.get('/api/health', async (req, res) => {
         { id: 'qrisdana', label: 'APIQris', status: APIQRIS_API_KEY ? 'configured' : 'error', detail: APIQRIS_API_KEY ? 'API key tersedia; transaksi nyata tetap memerlukan tes gateway.' : 'APIQRIS_API_KEY belum diisi.' },
         { id: 'gateway', label: 'APIQris', status: 'unknown', detail: 'Memeriksa konektivitas gateway…' },
         { id: 'storage', label: 'JSONBin storage', status: 'unknown', detail: 'Memeriksa koneksi penyimpanan…' },
-        { id: 'whatsapp', label: 'WhatsApp OTP · Wapito', status: WAPITO_API_KEY ? 'configured' : 'warning', detail: WAPITO_API_KEY ? 'Token Wapito tersedia; health check tidak mengirim pesan tes.' : 'WAPITO_API_KEY belum diisi; OTP dan notifikasi WhatsApp belum aktif.' },
+        { id: 'whatsapp', label: 'WhatsApp OTP · Wapito', status: WAPITO_API_KEY ? 'configured' : 'warning', detail: WAPITO_API_KEY ? 'Wapito hanya digunakan untuk pengiriman OTP.' : 'WAPITO_API_KEY belum diisi; pengiriman OTP belum aktif.' },
         { id: 'return', label: 'Polling pembayaran', status: 'configured', detail: 'Status pembayaran diverifikasi langsung ke APIQris.' },
         { id: 'otp-secret', label: 'OTP hash secret', status: OTP_HASH_SECRET ? 'configured' : 'warning', detail: OTP_HASH_SECRET ? 'Secret tersedia.' : 'OTP_HASH_SECRET belum diisi; set secret acak yang stabil di ENV.' }
     ]
@@ -435,6 +389,8 @@ app.post('/api/donate', async (req, res) => {
         const senderName = registeredUser ? (registeredUser.name || 'Donatur') : (String(name || '').trim().slice(0, 80) || 'Anonim')
         const trxNotes = String(notes || '').trim().slice(0, 500) || 'Semangat terus Kaxel!'
         const chosenEmoji = emoji || 'support'
+        const buyerWhatsapp = cleanPhone(registeredUser?.phone || req.body?.whatsappBuyer || req.body?.whatsapp || '')
+        if (buyerWhatsapp.length < 8 || buyerWhatsapp.length > 15) return res.status(400).json({ success: false, message: 'Nomor WhatsApp pembeli wajib diisi dan harus valid agar APIQris dapat mengirim bukti transaksi.' })
         const cleanWa = registeredUser?.phone || ''
         const configuredFeePercent = registeredUser ? OTP_FEE_PERCENT : ANONYMOUS_FEE_PERCENT
         const feePercent = DONATION_FEE_ENABLED ? configuredFeePercent : 0
@@ -446,13 +402,11 @@ app.post('/api/donate', async (req, res) => {
             method: 'POST',
             headers: { 'x-api-key': APIQRIS_API_KEY, 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                order_id: orderId,
                 ref_id: orderId,
                 amount: gatewayCharge,
-                keterangan: `Donasi Kaxel - ${trxNotes}`.slice(0, 200),
                 description: `Donasi Kaxel - ${trxNotes}`.slice(0, 200),
                 customer: { name: senderName },
-                whatsapp_buyer: cleanWa,
+                whatsapp_buyer: buyerWhatsapp,
                 metadata: { source: 'kaxel-donate', sender: senderName, donation_amount: parsedAmount, donation_fee: feeAmount }
             }),
             signal: AbortSignal.timeout(12000)
@@ -480,7 +434,7 @@ app.post('/api/donate', async (req, res) => {
             transactionId, gatewayInvoiceId: transactionId, gateway: 'apiqris', accessKey, orderId,
             baseFee: feeAmount, uniqueFee: uniqueCode, name: senderName,
             publicName: registeredUser && registeredUser.showPublicIdentity === false ? 'Anonim' : senderName,
-            whatsapp: cleanWa, userId: registeredUser?.id || null,
+            whatsapp: buyerWhatsapp, userId: registeredUser?.id || null,
             registered: Boolean(registeredUser && (registeredUser.whatsappVerifiedAt || registeredUser.createdAt)),
             whatsappVerifiedAt: registeredUser?.whatsappVerifiedAt || null,
             feePercent, configuredFeePercent, feePercentApplied: feePercent, feeEnabled: DONATION_FEE_ENABLED,
@@ -531,10 +485,8 @@ app.get('/api/status/:id', async (req, res) => {
                 const expiryPersisted = await saveDb(db)
                 if (process.env.VERCEL && !expiryPersisted) return res.status(503).json({ success: false, message: 'Status kedaluwarsa belum tersimpan ke JSONBin.' })
             }
-            await processExpiredStatusMessages(db)
             const idx = db.history.findIndex(item => item.transactionId === id && item.accessKey === String(key || ''))
             if (idx !== -1 && ['cancelled', 'canceled', 'expired', 'cancel'].includes(String(db.history[idx].status).toLowerCase()) && !isPaid(checkJson.data.status)) {
-                await retryFailedMemberWhatsApp(db, id)
                 return res.json({ success: true, data: { ...checkJson.data, status: db.history[idx].status } })
             }
             if (idx !== -1 && db.history[idx].status === 'pending' && !isPaid(checkJson.data.status) && new Date(db.history[idx].expiredAt || new Date(new Date(db.history[idx].createdAt).getTime() + 1200000)).getTime() <= Date.now()) {
@@ -553,23 +505,9 @@ app.get('/api/status/:id', async (req, res) => {
                 db.history[idx].lastNotifiedStatus = statusText
                 const statusPersisted = await saveDb(db)
                 if (process.env.VERCEL && !statusPersisted) return res.status(503).json({ success: false, message: 'Perubahan status belum tersimpan ke JSONBin.' })
-                const savedTrx = db.history[idx]
-                if (isVerifiedMember(db, savedTrx)) {
-                    const statusBody = `KAXEL SUPPORT - Status transaksi donasi diperbarui\nInvoice: ${savedTrx.invoiceNumber || `INV-${id}`}\nID transaksi: ${id}\nStatus: ${statusText}\nNominal donasi: Rp${Number(savedTrx.amount || 0).toLocaleString('id-ID')}\nFee layanan: Rp${Number(savedTrx.fee || 0).toLocaleString('id-ID')}\nTotal pembayaran: Rp${Number(savedTrx.totalAmount || savedTrx.amount || 0).toLocaleString('id-ID')}\nMetode: ${String(savedTrx.paymentMethod || '').toUpperCase()}`
-                    if (isPaid(statusText) || ['cancelled', 'canceled', 'cancel', 'expired'].includes(statusText.toLowerCase())) await deliverMemberWhatsAppOnce(db, savedTrx, `status:${id}:${statusText.toLowerCase()}`, statusBody)
-                }
-            }
-            const settledTrx = db.history.find(item => item.transactionId === id && item.accessKey === String(key || ''))
-            if (settledTrx && isPaid(settledTrx.status) && isVerifiedMember(db, settledTrx)) {
-                const paidStatus = String(settledTrx.status).toLowerCase()
-                const statusBody = `KAXEL SUPPORT - Status transaksi donasi diperbarui\nInvoice: ${settledTrx.invoiceNumber || `INV-${id}`}\nID transaksi: ${id}\nStatus: ${paidStatus}\nNominal donasi: Rp${Number(settledTrx.amount || 0).toLocaleString('id-ID')}\nFee layanan: Rp${Number(settledTrx.fee || 0).toLocaleString('id-ID')}\nTotal pembayaran: Rp${Number(settledTrx.totalAmount || settledTrx.amount || 0).toLocaleString('id-ID')}`
-                await deliverMemberWhatsAppOnce(db, settledTrx, `status:${id}:${paidStatus}`, statusBody)
             }
         }
 
-        const latestDb = await loadDb()
-        if (!databaseAvailable(res)) return
-        await retryFailedMemberWhatsApp(latestDb, id)
         res.json(checkJson)
     } catch (error) {
         res.status(500).json({ success: false, message: 'Gagal mengecek status.' })
@@ -596,11 +534,6 @@ app.post('/api/cancel/:id', async (req, res) => {
             if (!db.notifications.some(n => n.eventKey === eventKey)) db.notifications.unshift({ id: `NTF-${Date.now()}`, eventKey, transactionId: id, accessKey: db.history[idx].accessKey, type: 'payment', title: 'Transaksi dibatalkan', message: `Transaksi ${id} dibatalkan.`, createdAt: new Date().toISOString(), read: false })
             const cancelPersisted = await saveDb(db)
             if (process.env.VERCEL && !cancelPersisted) return res.status(503).json({ success: false, message: 'Pembatalan dari gateway diterima tetapi belum tersimpan ke JSONBin.' })
-            const cancelledTrx = db.history[idx]
-            if (isVerifiedMember(db, cancelledTrx)) {
-                const statusBody = `KAXEL SUPPORT - Status transaksi donasi diperbarui\nInvoice: ${cancelledTrx.invoiceNumber || `INV-${id}`}\nID transaksi: ${id}\nStatus: ${cancelledStatus}\nNominal donasi: Rp${Number(cancelledTrx.amount || 0).toLocaleString('id-ID')}`
-                await deliverMemberWhatsAppOnce(db, cancelledTrx, `status:${id}:${cancelledStatus.toLowerCase()}`, statusBody)
-            }
         }
 
         res.status(cancelRes.status).json(cancelRes.ok ? { success: true, data: cancelJson.data } : { success: false, message: cancelJson?.error?.message || 'APIQris menolak pembatalan.' })
@@ -703,7 +636,6 @@ app.get('/api/public-stats', async (req, res) => {
         const db = await loadDb()
         if (!databaseAvailable(res)) return
         if (normalizeExpiredTransactions(db) && !(await persistBeforeSuccess(db, res, 'Pembaruan status kedaluwarsa gagal tersimpan.'))) return
-        await processExpiredStatusMessages(db)
         const successList = db.history.filter(h => isPaid(h.status))
         const currentRaised = successList.reduce((acc, cur) => acc + Math.max(0, Number(cur.amount) || 0), 0)
 
@@ -780,7 +712,6 @@ app.post('/api/admin/stats', async (req, res) => {
         const db = await loadDb()
         if (!databaseAvailable(res)) return
         if (normalizeExpiredTransactions(db) && !(await persistBeforeSuccess(db, res, 'Pembaruan status kedaluwarsa gagal tersimpan.'))) return
-        await processExpiredStatusMessages(db)
         const successList = db.history.filter(h => isPaid(h.status))
         const pendingList = db.history.filter(h => h.status === 'pending')
         const totalRevenue = successList.reduce((acc, cur) => acc + Math.max(0, Number(cur.amount) || 0), 0)
