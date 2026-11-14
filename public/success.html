@@ -12,8 +12,18 @@
 <link rel="stylesheet" href="/theme.css">
     <link rel="stylesheet" href="/premium.css">
     <link rel="stylesheet" href="/swiss-modern.css">
+    <link rel="stylesheet" href="/ambient-background.css">
+    <script defer src="/ambient-background.js"></script>
 </head>
-<body data-page="success" data-status="pending"><main class="card"><span class="tag">KAXEL DONATE / PAYMENT</span><div class="mark" id="mark" aria-hidden="true">…</div><h1 id="title">Memeriksa status pembayaran…</h1><p id="description">Kami sedang mencocokkan transaksi dengan gateway. Kembali ke halaman ini bukan bukti pembayaran berhasil.</p><div class="note" id="details"><strong>Status transaksi</strong><br>Menunggu hasil pemeriksaan.</div><div class="actions"><a href="/">Kembali ke donasi</a><a class="secondary" href="/status">Status sistem</a></div><small>Transaksi hanya dinyatakan berhasil setelah status terkonfirmasi di gateway. Jangan bagikan tautan transaksi atau access key.</small></main>
+<body data-page="success" data-status="pending">
+<div class="kaxel-ambient-bg" aria-hidden="true">
+    <span class="kaxel-ambient-blob kaxel-ambient-blob--blue"></span>
+    <span class="kaxel-ambient-blob kaxel-ambient-blob--violet"></span>
+    <span class="kaxel-ambient-blob kaxel-ambient-blob--teal"></span>
+    <span class="kaxel-ambient-grid"></span>
+    <canvas id="kaxelAmbientCanvas"></canvas>
+    <span class="kaxel-ambient-vignette"></span>
+</div><main class="card"><span class="tag">KAXEL DONATE / PAYMENT</span><div class="mark" id="mark" aria-hidden="true">…</div><h1 id="title">Memeriksa status pembayaran…</h1><p id="description">Kami sedang mencocokkan transaksi dengan gateway. Kembali ke halaman ini bukan bukti pembayaran berhasil.</p><div class="note" id="details"><strong>Status transaksi</strong><br>Menunggu hasil pemeriksaan.</div><div class="actions"><a href="/">Kembali ke donasi</a><a class="secondary" href="/status">Status sistem</a></div><small>Transaksi hanya dinyatakan berhasil setelah status terkonfirmasi di gateway. Jangan bagikan tautan transaksi atau access key.</small></main>
 <script src="/theme.js"></script>
 <script>
 const title=document.getElementById('title'),desc=document.getElementById('description'),details=document.getElementById('details'),mark=document.getElementById('mark');

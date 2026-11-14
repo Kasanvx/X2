@@ -8,8 +8,18 @@
 </style><link rel="stylesheet" href="/theme.css">
     <link rel="stylesheet" href="/premium.css">
     <link rel="stylesheet" href="/swiss-modern.css">
+    <link rel="stylesheet" href="/ambient-background.css">
+    <script defer src="/ambient-background.js"></script>
 </head>
-<body data-page="health"><main class="wrap">
+<body data-page="health">
+<div class="kaxel-ambient-bg" aria-hidden="true">
+    <span class="kaxel-ambient-blob kaxel-ambient-blob--blue"></span>
+    <span class="kaxel-ambient-blob kaxel-ambient-blob--violet"></span>
+    <span class="kaxel-ambient-blob kaxel-ambient-blob--teal"></span>
+    <span class="kaxel-ambient-grid"></span>
+    <canvas id="kaxelAmbientCanvas"></canvas>
+    <span class="kaxel-ambient-vignette"></span>
+</div><main class="wrap">
 <header class="top"><div class="brand">KAXEL / SYSTEM OBSERVABILITY</div><div class="pill"><i class="dot" id="liveDot"></i><span id="liveLabel">Menyiapkan pemeriksaan</span></div></header>
 <section class="hero"><div class="eyebrow">Public status dashboard · v1.0</div><h1>Website health,<br>without the guesswork.</h1><p class="sub">Ringkasan kondisi layanan donasi, respons API, konfigurasi layanan penting, dan riwayat pemeriksaan yang tersimpan di browser ini.</p><div class="actions"><button id="refreshBtn">↻ Periksa sekarang</button><a class="link" href="/">← Kembali ke website</a></div></section>
 <section class="grid"><article class="metric"><small>Status layanan</small><strong id="overall">—</strong><span id="overallHint">Menunggu hasil pemeriksaan</span></article><article class="metric"><small>Respons API</small><strong id="latency">—</strong><span>Waktu respons health endpoint</span></article><article class="metric"><small>Uptime proses</small><strong id="uptime">—</strong><span>Sejak proses server aktif</span></article><article class="metric"><small>Rasio gagal</small><strong id="errorRate">—</strong><span id="errorRateHint">Berdasarkan pemeriksaan dari browser ini</span></article></section>
