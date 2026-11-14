@@ -140,3 +140,59 @@ body, body[data-theme="dark"] { background:var(--bg)!important; color:var(--text
 .payment-option.selected,.preset-btn:focus,.preset-btn:active,.emoji-btn.selected,.tab-btn.active { background:var(--accent)!important; color:#171717!important; border-color:var(--line)!important; }
 .badge-title,.account-gate-icon,.account-avatar,.leader-rank { background:var(--accent-soft)!important; color:var(--text)!important; border:1px solid var(--line)!important; }
 .progress-fill,.member-progress-bar { background:var(--primary)!important; }
+
+/* Mobile polish + accessible chat contrast */
+.comment-panel, .notice-panel { color:var(--text)!important; background:var(--surface)!important; }
+.comment-item, .notice-item {
+  color:var(--text)!important;
+  background:var(--surface-2)!important;
+  border:1px solid var(--line)!important;
+  border-radius:12px!important;
+  box-shadow:none!important;
+}
+.comment-item p, .notice-item p { color:var(--text)!important; line-height:1.55; }
+.comment-item small, .notice-item small { color:var(--muted)!important; }
+.comment-item strong, .notice-item strong { color:var(--text)!important; }
+.owner-intro { margin-bottom:16px!important; }
+.site-topbar .theme-toggle {
+  position:static!important; flex:0 0 36px!important; width:36px!important; min-height:36px!important;
+  height:36px!important; padding:0!important; margin-left:auto!important; border-radius:11px!important;
+  display:inline-flex!important; box-shadow:none!important; background:rgba(255,255,255,.08)!important;
+  border:1px solid rgba(255,255,255,.18)!important; color:#fff!important;
+}
+.site-topbar .theme-toggle span:last-child { display:none!important; }
+.site-topbar .theme-toggle span:first-child { font-size:17px!important; line-height:1!important; }
+@media(max-width:760px) {
+  body[data-page="public"] { padding-bottom:calc(100px + env(safe-area-inset-bottom))!important; }
+  .site-topbar { min-height:64px!important; gap:9px!important; padding:9px 13px!important; }
+  .site-brand { gap:8px!important; font-size:13px!important; white-space:nowrap!important; }
+  .brand-mark { width:36px!important; height:36px!important; flex:0 0 36px!important; }
+  .brand-tag { font-size:8px!important; padding:4px 6px!important; }
+  .topbar-status { padding:6px 9px!important; font-size:9px!important; }
+  .page-shortcuts { display:none!important; }
+  .marquee { margin-top:10px!important; min-height:38px!important; }
+  .container { margin-top:12px!important; padding-left:12px!important; padding-right:12px!important; }
+  .owner-intro { padding:19px!important; margin-bottom:12px!important; border-radius:15px!important; }
+  .owner-intro h2 { font-size:22px!important; margin-bottom:8px!important; }
+  .owner-intro p { font-size:12px!important; line-height:1.65!important; }
+  .goal-box { padding:16px!important; }
+  #goalNumbers { font-size:clamp(19px,5.5vw,25px)!important; }
+  .neo-card { padding:12px!important; border-radius:15px!important; }
+  .card-header-flex { margin-bottom:10px!important; }
+  .neo-card .tabs { min-height:76px!important; padding:8px 8px calc(9px + env(safe-area-inset-bottom))!important; }
+  .neo-card .tabs .tab-btn { min-height:54px!important; font-size:9px!important; letter-spacing:.01em!important; }
+  .neo-card .tabs .tab-btn svg { width:20px!important; height:20px!important; }
+  .comment-panel { padding:13px!important; }
+  .comment-item, .notice-item { padding:12px!important; margin:8px 0!important; }
+  #donorMessage { min-height:92px!important; }
+  .theme-toggle:not(.site-topbar .theme-toggle) { display:none!important; }
+  #qrSection, #resultSection { scroll-margin-top:78px; }
+  .qr-frame { padding:12px!important; }
+  .qr-frame img { width:min(100%,340px)!important; display:block; margin:auto; }
+  .info-list { padding:13px!important; }
+  .info-list p { gap:10px!important; align-items:flex-start!important; }
+  .info-list p span:last-child { text-align:right; overflow-wrap:anywhere; }
+  .action-row { display:grid!important; grid-template-columns:1fr!important; gap:9px!important; }
+  .action-row button { width:100%!important; min-height:46px!important; }
+  .feed-item, .transaction-row, .account-section-card { padding:13px!important; }
+}

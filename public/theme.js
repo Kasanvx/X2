@@ -28,11 +28,15 @@
   const button = document.createElement('button')
   button.type = 'button'
   button.className = 'theme-toggle'
+  button.title = 'Ganti tema tampilan'
   button.addEventListener('click', () => {
     const next = root.dataset.theme === 'dark' ? 'light' : 'dark'
     try { localStorage.setItem(STORAGE_KEY, next) } catch { /* Theme still works for this page view. */ }
     applyTheme(next)
   })
-  root.appendChild(button)
+  const header = document.querySelector('.site-topbar')
+  const status = header?.querySelector('.topbar-status')
+  if (header && status) header.insertBefore(button, status)
+  else root.appendChild(button)
   applyTheme(readPreference())
 })()
